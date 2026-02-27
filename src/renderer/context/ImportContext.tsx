@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, type Dispatch, type ReactNode } 
 import type { Volume, MediaFile, ImportProgress, ImportResult } from '../../shared/types';
 
 export type AppPhase = 'idle' | 'scanning' | 'ready' | 'importing' | 'complete';
+export type ViewMode = 'grid' | 'single';
 
 interface State {
   volumes: Volume[];
@@ -12,6 +13,8 @@ interface State {
   skipDuplicates: boolean;
   importProgress: ImportProgress | null;
   importResult: ImportResult | null;
+  focusedIndex: number;
+  viewMode: ViewMode;
 }
 
 export type Action =
@@ -29,6 +32,10 @@ export type Action =
   | { type: 'SET_THUMBNAIL'; filePath: string; thumbnail: string }
   | { type: 'SET_DUPLICATE'; filePath: string }
   | { type: 'CLEAR_DUPLICATES' }
+  | { type: 'SET_PICK'; filePath: string; pick: 'selected' | 'rejected' | undefined }
+  | { type: 'CLEAR_PICKS' }
+  | { type: 'SET_FOCUSED'; index: number }
+  | { type: 'SET_VIEW_MODE'; mode: ViewMode }
   | { type: 'RESET_FILES' };
 
 const initialState: State = {
@@ -40,6 +47,8 @@ const initialState: State = {
   skipDuplicates: true,
   importProgress: null,
   importResult: null,
+  focusedIndex: -1,
+  viewMode: 'grid' as ViewMode,
 };
 
 function reducer(state: State, action: Action): State {
@@ -49,7 +58,7 @@ function reducer(state: State, action: Action): State {
     case 'SELECT_SOURCE':
       return { ...state, selectedSource: action.path, files: [], phase: 'idle' };
     case 'SCAN_START':
-      return { ...state, files: [], phase: 'scanning' };
+      return { ...state, files: [], phase: 'scanning', focusedIndex: -1 };
     case 'SCAN_BATCH':
       return { ...state, files: [...state.files, ...action.files] };
     case 'SCAN_COMPLETE':
@@ -85,8 +94,24 @@ function reducer(state: State, action: Action): State {
         ...state,
         files: state.files.map((f) => ({ ...f, duplicate: false })),
       };
+    case 'SET_PICK':
+      return {
+        ...state,
+        files: state.files.map((f) =>
+          f.path === action.filePath ? { ...f, pick: action.pick } : f,
+        ),
+      };
+    case 'CLEAR_PICKS':
+      return {
+        ...state,
+        files: state.files.map((f) => ({ ...f, pick: undefined })),
+      };
+    case 'SET_FOCUSED':
+      return { ...state, focusedIndex: action.index };
+    case 'SET_VIEW_MODE':
+      return { ...state, viewMode: action.mode };
     case 'RESET_FILES':
-      return { ...state, files: [], phase: 'idle' };
+      return { ...state, files: [], phase: 'idle', focusedIndex: -1 };
     default:
       return state;
   }

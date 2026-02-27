@@ -27,9 +27,19 @@ export function DestinationPanel() {
   };
 
   const duplicateCount = files.filter((f) => f.duplicate).length;
-  const newFiles = skipDuplicates ? files.filter((f) => !f.duplicate) : files;
-  const canImport = selectedSource && destination && newFiles.length > 0 && phase === 'ready';
-  const totalSize = newFiles.reduce((sum, f) => sum + f.size, 0);
+  const pickedCount = files.filter((f) => f.pick === 'selected').length;
+  const hasPicks = pickedCount > 0;
+
+  // If any files are explicitly picked, import only those.
+  // Otherwise import all non-rejected (respecting skip-duplicates).
+  const importFiles = hasPicks
+    ? files.filter((f) => f.pick === 'selected')
+    : skipDuplicates
+      ? files.filter((f) => !f.duplicate && f.pick !== 'rejected')
+      : files.filter((f) => f.pick !== 'rejected');
+
+  const canImport = selectedSource && destination && importFiles.length > 0 && phase === 'ready';
+  const totalSize = importFiles.reduce((sum, f) => sum + f.size, 0);
 
   // Group files by date folder for preview
   const folderMap = new Map<string, string[]>();
@@ -114,7 +124,8 @@ export function DestinationPanel() {
       <div className="mt-auto p-3 border-t border-neutral-700">
         {files.length > 0 && (
           <div className="text-xs text-neutral-500 mb-3">
-            {newFiles.length} files &middot; {formatSize(totalSize)}
+            {importFiles.length} file{importFiles.length !== 1 ? 's' : ''} &middot; {formatSize(totalSize)}
+            {hasPicks && <span className="text-emerald-400/70"> &middot; {pickedCount} picked</span>}
             {skipDuplicates && duplicateCount > 0 && (
               <span className="text-yellow-500/70"> &middot; {duplicateCount} already imported</span>
             )}
@@ -129,7 +140,7 @@ export function DestinationPanel() {
               : 'bg-neutral-700 text-neutral-500 cursor-not-allowed'
           }`}
         >
-          Import {newFiles.length > 0 ? `${newFiles.length} Files` : ''}
+          Import {importFiles.length > 0 ? `${importFiles.length} Files` : ''}
         </button>
       </div>
     </div>

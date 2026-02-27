@@ -10,7 +10,7 @@ export function Layout({ left, center, right }: LayoutProps) {
   return (
     <div className="h-screen flex flex-col">
       {/* Titlebar drag region */}
-      <div className="h-8 shrink-0 bg-neutral-900 [-webkit-app-region:drag]" />
+      <div className="h-8 shrink-0 bg-neutral-850 [-webkit-app-region:drag]" />
 
       <div className="flex flex-1 min-h-0">
         {/* Left panel - Source */}

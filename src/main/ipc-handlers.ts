@@ -7,6 +7,7 @@ import { listVolumes, startWatching, stopWatching } from './services/volume-watc
 import { scanFiles, cancelScan } from './services/file-scanner';
 import { importFiles, cancelImport } from './services/import-engine';
 import { isDuplicate } from './services/duplicate-detector';
+import { generatePreview } from './services/exif-parser';
 
 let scannedFiles: MediaFile[] = [];
 
@@ -88,6 +89,10 @@ export function registerIpcHandlers(): void {
         sendToRenderer(IPC.SCAN_DUPLICATE, file.path);
       }
     }
+  });
+
+  ipcMain.handle(IPC.SCAN_PREVIEW, async (_event, filePath: string) => {
+    return generatePreview(filePath);
   });
 
   ipcMain.handle(IPC.SCAN_CANCEL, async () => {

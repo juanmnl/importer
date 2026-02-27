@@ -11,6 +11,8 @@ const execFileAsync = promisify(execFile);
 
 export const EXIFR_SUPPORTED = new Set(['.jpg', '.jpeg', '.heic', '.dng', '.cr2', '.cr3', '.arw', '.nef']);
 const THUMB_WIDTH = 320;
+const PREVIEW_WIDTH = 1920;
+const PREVIEW_QUALITY = 85;
 
 let thumbDir: string | null = null;
 
@@ -32,17 +34,19 @@ function formatDate(date: Date): string {
 // Fast: only extract date, no thumbnail
 export async function parseExifDate(
   file: MediaFile,
-): Promise<{ dateTaken?: string; destPath?: string }> {
+): Promise<{ dateTaken?: string; destPath?: string; orientation?: number }> {
   let dateTaken: Date | null = null;
+  let orientation: number | undefined;
 
   if (file.type === 'photo' && EXIFR_SUPPORTED.has(file.extension)) {
     try {
       const exif = await exifr.parse(file.path, {
-        pick: ['DateTimeOriginal', 'CreateDate', 'ModifyDate'],
+        pick: ['DateTimeOriginal', 'CreateDate', 'ModifyDate', 'Orientation'],
         reviveValues: true,
       });
       if (exif) {
         dateTaken = exif.DateTimeOriginal || exif.CreateDate || exif.ModifyDate || null;
+        if (typeof exif.Orientation === 'number') orientation = exif.Orientation;
       }
     } catch {
       // EXIF parse failed
@@ -62,6 +66,7 @@ export async function parseExifDate(
   return {
     dateTaken: dateTaken.toISOString(),
     destPath: `${dateStr}/${file.name}`,
+    orientation,
   };
 }
 
@@ -76,6 +81,37 @@ export async function extractEmbeddedThumbnail(
     if (!thumbData || thumbData.byteLength === 0) return undefined;
     const buffer = Buffer.isBuffer(thumbData) ? thumbData : Buffer.from(thumbData);
     return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+  } catch {
+    return undefined;
+  }
+}
+
+// Large preview for single/loupe view (1920px, high quality, cached)
+export async function generatePreview(filePath: string): Promise<string | undefined> {
+  try {
+    const dir = await getThumbDir();
+    const hash = crypto.createHash('md5').update(filePath).digest('hex').slice(0, 12);
+    const outPath = path.join(dir, `${hash}_preview.jpg`);
+
+    // Check cache first
+    try {
+      await stat(outPath);
+      const buf = await readFile(outPath);
+      return `data:image/jpeg;base64,${buf.toString('base64')}`;
+    } catch {
+      // Not cached, generate
+    }
+
+    await execFileAsync('sips', [
+      '-s', 'format', 'jpeg',
+      '-s', 'formatOptions', String(PREVIEW_QUALITY),
+      '--resampleWidth', String(PREVIEW_WIDTH),
+      filePath,
+      '--out', outPath,
+    ], { timeout: 30000 });
+
+    const previewBuffer = await readFile(outPath);
+    return `data:image/jpeg;base64,${previewBuffer.toString('base64')}`;
   } catch {
     return undefined;
   }

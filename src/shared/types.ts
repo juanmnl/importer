@@ -17,6 +17,8 @@ export interface MediaFile {
   destPath?: string;
   thumbnail?: string; // base64 data URI
   duplicate?: boolean;
+  pick?: 'selected' | 'rejected';
+  orientation?: number; // EXIF orientation (1-8), 6/8 = portrait
 }
 
 export interface ImportConfig {
@@ -79,6 +81,7 @@ export const IPC = {
   SCAN_CHECK_DUPLICATES: 'scan:check-duplicates',
   SCAN_DUPLICATE: 'scan:duplicate',
   SCAN_CANCEL: 'scan:cancel',
+  SCAN_PREVIEW: 'scan:preview',
 
   // Import
   IMPORT_START: 'import:start',
