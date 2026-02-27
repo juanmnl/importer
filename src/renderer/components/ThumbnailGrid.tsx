@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAppState } from '../context/ImportContext';
 import { ThumbnailCard } from './ThumbnailCard';
 import { EmptyState } from './EmptyState';
@@ -26,8 +27,16 @@ export function ThumbnailGrid() {
     );
   }
 
+  const sortedFiles = useMemo(
+    () => [...files].sort((a, b) => (b.duplicate ? 1 : 0) - (a.duplicate ? 1 : 0)),
+    [files],
+  );
+
   const photoCount = files.filter((f) => f.type === 'photo').length;
   const videoCount = files.filter((f) => f.type === 'video').length;
+  const thumbCount = files.filter((f) => f.thumbnail).length;
+  const duplicateCount = files.filter((f) => f.duplicate).length;
+  const thumbsLoading = phase === 'scanning' && files.length > 0 && thumbCount < files.length;
 
   return (
     <div className="p-4">
@@ -40,15 +49,20 @@ export function ThumbnailGrid() {
           {photoCount > 0 && <span>{photoCount} photo{photoCount !== 1 ? 's' : ''}</span>}
           {photoCount > 0 && videoCount > 0 && <span>&middot;</span>}
           {videoCount > 0 && <span>{videoCount} video{videoCount !== 1 ? 's' : ''}</span>}
+          {duplicateCount > 0 && <span>&middot;</span>}
+          {duplicateCount > 0 && <span className="text-yellow-500">{duplicateCount} imported</span>}
         </div>
-        {phase === 'scanning' && (
-          <div className="w-4 h-4 border-2 border-neutral-600 border-t-blue-500 rounded-full animate-spin" />
+        {thumbsLoading && (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-neutral-600 border-t-blue-500 rounded-full animate-spin" />
+            <span className="text-[11px] text-neutral-500">loading previews {thumbCount}/{files.length}</span>
+          </div>
         )}
       </div>
 
-      {/* Grid */}
+      {/* Grid — duplicates (already imported) float to the top */}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3">
-        {files.map((file) => (
+        {sortedFiles.map((file) => (
           <ThumbnailCard key={file.path} file={file} />
         ))}
       </div>

@@ -26,8 +26,10 @@ export function DestinationPanel() {
     window.electronAPI.setSettings({ skipDuplicates: value });
   };
 
-  const canImport = selectedSource && destination && files.length > 0 && phase === 'ready';
-  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+  const duplicateCount = files.filter((f) => f.duplicate).length;
+  const newFiles = skipDuplicates ? files.filter((f) => !f.duplicate) : files;
+  const canImport = selectedSource && destination && newFiles.length > 0 && phase === 'ready';
+  const totalSize = newFiles.reduce((sum, f) => sum + f.size, 0);
 
   // Group files by date folder for preview
   const folderMap = new Map<string, string[]>();
@@ -112,7 +114,10 @@ export function DestinationPanel() {
       <div className="mt-auto p-3 border-t border-neutral-700">
         {files.length > 0 && (
           <div className="text-xs text-neutral-500 mb-3">
-            {files.length} files &middot; {formatSize(totalSize)}
+            {newFiles.length} files &middot; {formatSize(totalSize)}
+            {skipDuplicates && duplicateCount > 0 && (
+              <span className="text-yellow-500/70"> &middot; {duplicateCount} already imported</span>
+            )}
           </div>
         )}
         <button
@@ -124,7 +129,7 @@ export function DestinationPanel() {
               : 'bg-neutral-700 text-neutral-500 cursor-not-allowed'
           }`}
         >
-          Import {files.length > 0 ? `${files.length} Files` : ''}
+          Import {newFiles.length > 0 ? `${newFiles.length} Files` : ''}
         </button>
       </div>
     </div>

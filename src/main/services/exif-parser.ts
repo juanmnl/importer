@@ -9,7 +9,7 @@ import type { MediaFile } from '../../shared/types';
 
 const execFileAsync = promisify(execFile);
 
-const EXIFR_SUPPORTED = new Set(['.jpg', '.jpeg', '.heic', '.dng', '.cr2', '.cr3', '.arw', '.nef']);
+export const EXIFR_SUPPORTED = new Set(['.jpg', '.jpeg', '.heic', '.dng', '.cr2', '.cr3', '.arw', '.nef']);
 const THUMB_WIDTH = 320;
 
 let thumbDir: string | null = null;
@@ -65,7 +65,23 @@ export async function parseExifDate(
   };
 }
 
-// Slow: generate thumbnail via macOS sips
+// Fast: extract embedded JPEG thumbnail from EXIF data (no RAW decoding)
+export async function extractEmbeddedThumbnail(
+  filePath: string,
+  extension: string,
+): Promise<string | undefined> {
+  if (!EXIFR_SUPPORTED.has(extension)) return undefined;
+  try {
+    const thumbData = await exifr.thumbnail(filePath);
+    if (!thumbData || thumbData.byteLength === 0) return undefined;
+    const buffer = Buffer.isBuffer(thumbData) ? thumbData : Buffer.from(thumbData);
+    return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+  } catch {
+    return undefined;
+  }
+}
+
+// Slow: generate thumbnail via macOS sips (fallback for unsupported formats)
 export async function generateThumbnail(filePath: string, fileName: string): Promise<string | undefined> {
   try {
     const dir = await getThumbDir();

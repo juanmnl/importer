@@ -6,6 +6,7 @@ import type { ImportConfig, AppSettings, MediaFile } from '../shared/types';
 import { listVolumes, startWatching, stopWatching } from './services/volume-watcher';
 import { scanFiles, cancelScan } from './services/file-scanner';
 import { importFiles, cancelImport } from './services/import-engine';
+import { isDuplicate } from './services/duplicate-detector';
 
 let scannedFiles: MediaFile[] = [];
 
@@ -75,6 +76,17 @@ export function registerIpcHandlers(): void {
     } catch (err) {
       console.error('[scan] Error:', err);
       sendToRenderer(IPC.SCAN_COMPLETE, 0);
+    }
+  });
+
+  ipcMain.handle(IPC.SCAN_CHECK_DUPLICATES, async (_event, destRoot: string) => {
+    for (const file of scannedFiles) {
+      if (!file.destPath) continue;
+      const dup = await isDuplicate(destRoot, file.destPath, file.size);
+      if (dup) {
+        file.duplicate = true;
+        sendToRenderer(IPC.SCAN_DUPLICATE, file.path);
+      }
     }
   });
 

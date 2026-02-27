@@ -19,7 +19,11 @@ export function ThumbnailCard({ file }: ThumbnailCardProps) {
   const isVideo = file.type === 'video';
 
   return (
-    <div className="group bg-neutral-800 rounded-lg overflow-hidden border border-neutral-700/50 hover:border-neutral-600 transition-colors">
+    <div className={`group bg-neutral-800 rounded-lg overflow-hidden border transition-colors ${
+      file.duplicate
+        ? 'border-neutral-700/50 opacity-40'
+        : 'border-neutral-700/50 hover:border-neutral-600'
+    }`}>
       {/* Thumbnail area */}
       <div className="aspect-[4/3] bg-neutral-800 relative flex items-center justify-center">
         {file.thumbnail ? (
@@ -41,6 +45,11 @@ export function ThumbnailCard({ file }: ThumbnailCardProps) {
         {isVideo && (
           <div className="absolute top-2 right-2 bg-black/70 text-[10px] text-white px-1.5 py-0.5 rounded font-medium">
             VIDEO
+          </div>
+        )}
+        {file.duplicate && (
+          <div className="absolute top-2 left-2 bg-yellow-600/80 text-[10px] text-white px-1.5 py-0.5 rounded font-medium">
+            IMPORTED
           </div>
         )}
       </div>

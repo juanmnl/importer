@@ -2,10 +2,11 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { PHOTO_EXTENSIONS, VIDEO_EXTENSIONS } from '../../shared/types';
 import type { MediaFile } from '../../shared/types';
-import { parseExifDate, generateThumbnail } from './exif-parser';
+import { parseExifDate, generateThumbnail, extractEmbeddedThumbnail, EXIFR_SUPPORTED } from './exif-parser';
 
 const BATCH_SIZE = 50;
-const THUMB_CONCURRENCY = 3; // SD cards have poor random I/O
+const FAST_THUMB_CONCURRENCY = 10; // exifr embedded thumbs — just file reads, no CPU
+const SLOW_THUMB_CONCURRENCY = 3;  // sips — spawns process, decodes RAW
 
 let currentAbortController: AbortController | null = null;
 
@@ -86,14 +87,35 @@ export async function scanFiles(
     onBatch(enriched);
   }
 
-  // Phase 2: Generate thumbnails in background (slow, streamed one by one)
-  for (let i = 0; i < allFiles.length; i += THUMB_CONCURRENCY) {
+  // Phase 2A: Fast thumbnails — extract embedded JPEG from EXIF (exifr-supported formats)
+  const photos = allFiles.filter((f) => f.type === 'photo');
+  const fastFiles = photos.filter((f) => EXIFR_SUPPORTED.has(f.extension));
+  const slowFiles: MediaFile[] = [];
+
+  for (let i = 0; i < fastFiles.length; i += FAST_THUMB_CONCURRENCY) {
     if (signal.aborted) break;
-    const batch = allFiles.slice(i, i + THUMB_CONCURRENCY);
+    const batch = fastFiles.slice(i, i + FAST_THUMB_CONCURRENCY);
     await Promise.all(
       batch.map(async (file) => {
         if (signal.aborted) return;
-        if (file.type !== 'photo') return;
+        const thumbnail = await extractEmbeddedThumbnail(file.path, file.extension);
+        if (thumbnail) {
+          onThumbnail(file.path, thumbnail);
+        } else {
+          slowFiles.push(file); // exifr failed, fall back to sips
+        }
+      }),
+    );
+  }
+
+  // Phase 2B: Slow thumbnails — sips fallback for unsupported formats + exifr failures
+  const sipsFiles = [...photos.filter((f) => !EXIFR_SUPPORTED.has(f.extension)), ...slowFiles];
+  for (let i = 0; i < sipsFiles.length; i += SLOW_THUMB_CONCURRENCY) {
+    if (signal.aborted) break;
+    const batch = sipsFiles.slice(i, i + SLOW_THUMB_CONCURRENCY);
+    await Promise.all(
+      batch.map(async (file) => {
+        if (signal.aborted) return;
         const thumbnail = await generateThumbnail(file.path, file.name);
         if (thumbnail) {
           onThumbnail(file.path, thumbnail);

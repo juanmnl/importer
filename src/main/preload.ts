@@ -30,6 +30,13 @@ const api = {
     ipcRenderer.on(IPC.SCAN_THUMBNAIL, handler);
     return () => ipcRenderer.removeListener(IPC.SCAN_THUMBNAIL, handler);
   },
+  checkDuplicates: (destRoot: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.SCAN_CHECK_DUPLICATES, destRoot),
+  onScanDuplicate: (cb: (filePath: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, filePath: string) => cb(filePath);
+    ipcRenderer.on(IPC.SCAN_DUPLICATE, handler);
+    return () => ipcRenderer.removeListener(IPC.SCAN_DUPLICATE, handler);
+  },
   cancelScan: (): Promise<void> =>
     ipcRenderer.invoke(IPC.SCAN_CANCEL),
 

@@ -16,6 +16,7 @@ export interface MediaFile {
   dateTaken?: string;
   destPath?: string;
   thumbnail?: string; // base64 data URI
+  duplicate?: boolean;
 }
 
 export interface ImportConfig {
@@ -75,6 +76,8 @@ export const IPC = {
   SCAN_BATCH: 'scan:batch',
   SCAN_COMPLETE: 'scan:complete',
   SCAN_THUMBNAIL: 'scan:thumbnail',
+  SCAN_CHECK_DUPLICATES: 'scan:check-duplicates',
+  SCAN_DUPLICATE: 'scan:duplicate',
   SCAN_CANCEL: 'scan:cancel',
 
   // Import
