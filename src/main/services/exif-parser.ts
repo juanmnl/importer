@@ -2,11 +2,14 @@ import exifr from 'exifr';
 import { stat } from 'node:fs/promises';
 import type { MediaFile } from '../../shared/types';
 
+// Formats exifr can reliably parse
+const EXIFR_SUPPORTED = new Set(['.jpg', '.jpeg', '.heic', '.dng', '.cr2', '.cr3', '.arw', '.nef']);
+
 function formatDate(date: Date): string {
   const y = date.getFullYear().toString();
   const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const d = date.getDate().toString().padStart(2, '0');
-  return `${y}/${m}/${d}`;
+  return `${y}-${m}-${d}`;
 }
 
 export async function parseExif(
@@ -15,7 +18,9 @@ export async function parseExif(
   let dateTaken: Date | null = null;
   let thumbnail: string | undefined;
 
-  if (file.type === 'photo') {
+  const canParse = file.type === 'photo' && EXIFR_SUPPORTED.has(file.extension);
+
+  if (canParse) {
     try {
       const exif = await exifr.parse(file.path, {
         pick: ['DateTimeOriginal', 'CreateDate', 'ModifyDate'],
@@ -26,7 +31,7 @@ export async function parseExif(
         dateTaken = exif.DateTimeOriginal || exif.CreateDate || exif.ModifyDate || null;
       }
     } catch {
-      // EXIF parsing failed, fall back below
+      // EXIF parsing failed
     }
 
     try {
@@ -36,7 +41,7 @@ export async function parseExif(
         thumbnail = `data:image/jpeg;base64,${base64}`;
       }
     } catch {
-      // No thumbnail available
+      // No embedded thumbnail
     }
   }
 

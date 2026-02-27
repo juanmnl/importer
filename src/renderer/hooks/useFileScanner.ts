@@ -7,10 +7,12 @@ export function useFileScanner() {
 
   useEffect(() => {
     const unsubBatch = window.electronAPI.onScanBatch((files) => {
+      console.log('[renderer] scan:batch received', files.length, 'files');
       dispatch({ type: 'SCAN_BATCH', files });
     });
 
-    const unsubComplete = window.electronAPI.onScanComplete(() => {
+    const unsubComplete = window.electronAPI.onScanComplete((total) => {
+      console.log('[renderer] scan:complete', total);
       dispatch({ type: 'SCAN_COMPLETE' });
     });
 
@@ -24,8 +26,14 @@ export function useFileScanner() {
     const target = sourcePath || selectedSource;
     if (!target) return;
 
+    console.log('[renderer] starting scan:', target);
     dispatch({ type: 'SCAN_START' });
-    await window.electronAPI.scanFiles(target);
+    try {
+      await window.electronAPI.scanFiles(target);
+      console.log('[renderer] scanFiles invoke resolved');
+    } catch (err) {
+      console.error('[renderer] scanFiles error:', err);
+    }
   }, [selectedSource, dispatch]);
 
   const cancelScan = useCallback(async () => {

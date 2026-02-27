@@ -2,9 +2,9 @@ import { useAppState, useAppDispatch } from '../context/ImportContext';
 import { useImport } from '../hooks/useImport';
 
 function formatSize(bytes: number): string {
-  const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${gb.toFixed(1)} GB`;
-  return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+  const gb = bytes / 1e9;
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
+  return `${(bytes / 1e6).toFixed(0)} MB`;
 }
 
 export function DestinationPanel() {
@@ -29,10 +29,17 @@ export function DestinationPanel() {
   const canImport = selectedSource && destination && files.length > 0 && phase === 'ready';
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
 
-  // Collect unique date folders for preview
-  const dateFolders = [...new Set(
-    files.map((f) => f.destPath?.split('/').slice(0, 3).join('/') || '').filter(Boolean),
-  )].sort();
+  // Group files by date folder for preview
+  const folderMap = new Map<string, string[]>();
+  for (const f of files) {
+    if (!f.destPath) continue;
+    const parts = f.destPath.split('/');
+    const folder = parts[0]; // e.g. "2026-02-21"
+    const fileName = parts.slice(1).join('/');
+    if (!folderMap.has(folder)) folderMap.set(folder, []);
+    folderMap.get(folder)!.push(fileName);
+  }
+  const folders = [...folderMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
   return (
     <div className="flex flex-col h-full">
@@ -76,20 +83,27 @@ export function DestinationPanel() {
       </div>
 
       {/* Folder structure preview */}
-      {files.length > 0 && destination && (
+      {folders.length > 0 && destination && (
         <div className="px-3 mb-4 flex-1 min-h-0 overflow-y-auto">
           <h3 className="text-[11px] text-neutral-500 mb-2 uppercase tracking-wider">Folder Preview</h3>
-          <div className="space-y-0.5">
-            {dateFolders.slice(0, 20).map((folder) => (
-              <div key={folder} className="text-[11px] text-neutral-500 font-mono">
-                {folder}/
+          <div className="space-y-2">
+            {folders.map(([folder, fileNames]) => (
+              <div key={folder}>
+                <div className="text-[11px] text-neutral-400 font-mono font-medium">
+                  {folder}/
+                </div>
+                {fileNames.slice(0, 5).map((name) => (
+                  <div key={name} className="text-[11px] text-neutral-600 font-mono pl-3 truncate">
+                    {name}
+                  </div>
+                ))}
+                {fileNames.length > 5 && (
+                  <div className="text-[11px] text-neutral-600 pl-3">
+                    +{fileNames.length - 5} more
+                  </div>
+                )}
               </div>
             ))}
-            {dateFolders.length > 20 && (
-              <div className="text-[11px] text-neutral-600">
-                ...and {dateFolders.length - 20} more
-              </div>
-            )}
           </div>
         </div>
       )}

@@ -2,10 +2,9 @@ import { useAppState } from '../context/ImportContext';
 import { useImport } from '../hooks/useImport';
 
 function formatSize(bytes: number): string {
-  const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${gb.toFixed(1)} GB`;
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(0)} MB`;
+  const gb = bytes / 1e9;
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
+  return `${(bytes / 1e6).toFixed(0)} MB`;
 }
 
 export function ImportProgress() {

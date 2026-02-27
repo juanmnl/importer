@@ -8,8 +8,8 @@ interface VolumeItemProps {
 
 function formatSize(bytes?: number): string {
   if (!bytes) return '';
-  const gb = bytes / (1024 * 1024 * 1024);
-  return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+  const gb = bytes / 1e9;
+  return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(bytes / 1e6).toFixed(0)} MB`;
 }
 
 export function VolumeItem({ volume, isSelected, onSelect }: VolumeItemProps) {
