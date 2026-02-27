@@ -74,6 +74,7 @@ export const IPC = {
   SCAN_START: 'scan:start',
   SCAN_BATCH: 'scan:batch',
   SCAN_COMPLETE: 'scan:complete',
+  SCAN_THUMBNAIL: 'scan:thumbnail',
   SCAN_CANCEL: 'scan:cancel',
 
   // Import

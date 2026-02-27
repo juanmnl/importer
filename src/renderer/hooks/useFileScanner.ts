@@ -16,9 +16,14 @@ export function useFileScanner() {
       dispatch({ type: 'SCAN_COMPLETE' });
     });
 
+    const unsubThumb = window.electronAPI.onScanThumbnail((filePath, thumbnail) => {
+      dispatch({ type: 'SET_THUMBNAIL', filePath, thumbnail });
+    });
+
     return () => {
       unsubBatch();
       unsubComplete();
+      unsubThumb();
     };
   }, [dispatch]);
 

@@ -26,6 +26,7 @@ export type Action =
   | { type: 'IMPORT_PROGRESS'; progress: ImportProgress }
   | { type: 'IMPORT_COMPLETE'; result: ImportResult }
   | { type: 'DISMISS_SUMMARY' }
+  | { type: 'SET_THUMBNAIL'; filePath: string; thumbnail: string }
   | { type: 'RESET_FILES' };
 
 const initialState: State = {
@@ -63,6 +64,13 @@ function reducer(state: State, action: Action): State {
       return { ...state, phase: 'complete', importResult: action.result };
     case 'DISMISS_SUMMARY':
       return { ...state, phase: 'ready', importResult: null, importProgress: null };
+    case 'SET_THUMBNAIL':
+      return {
+        ...state,
+        files: state.files.map((f) =>
+          f.path === action.filePath ? { ...f, thumbnail: action.thumbnail } : f,
+        ),
+      };
     case 'RESET_FILES':
       return { ...state, files: [], phase: 'idle' };
     default:

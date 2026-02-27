@@ -25,6 +25,11 @@ const api = {
     ipcRenderer.on(IPC.SCAN_COMPLETE, handler);
     return () => ipcRenderer.removeListener(IPC.SCAN_COMPLETE, handler);
   },
+  onScanThumbnail: (cb: (filePath: string, thumbnail: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, filePath: string, thumbnail: string) => cb(filePath, thumbnail);
+    ipcRenderer.on(IPC.SCAN_THUMBNAIL, handler);
+    return () => ipcRenderer.removeListener(IPC.SCAN_THUMBNAIL, handler);
+  },
   cancelScan: (): Promise<void> =>
     ipcRenderer.invoke(IPC.SCAN_CANCEL),
 

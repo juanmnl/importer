@@ -56,11 +56,20 @@ export function registerIpcHandlers(): void {
     console.log(`[scan] Starting scan of: ${sourcePath}`);
     scannedFiles = [];
     try {
-      const total = await scanFiles(sourcePath, (batch) => {
-        console.log(`[scan] Batch: ${batch.length} files (thumbnails: ${batch.filter(f => f.thumbnail).length})`);
-        scannedFiles.push(...batch);
-        sendToRenderer(IPC.SCAN_BATCH, batch);
-      });
+      const total = await scanFiles(
+        sourcePath,
+        (batch) => {
+          console.log(`[scan] Batch: ${batch.length} files`);
+          scannedFiles.push(...batch);
+          sendToRenderer(IPC.SCAN_BATCH, batch);
+        },
+        (filePath, thumbnail) => {
+          // Update the cached file with thumbnail
+          const file = scannedFiles.find((f) => f.path === filePath);
+          if (file) file.thumbnail = thumbnail;
+          sendToRenderer(IPC.SCAN_THUMBNAIL, filePath, thumbnail);
+        },
+      );
       console.log(`[scan] Complete: ${total} files`);
       sendToRenderer(IPC.SCAN_COMPLETE, total);
     } catch (err) {

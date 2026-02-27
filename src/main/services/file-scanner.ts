@@ -1,11 +1,11 @@
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { ALL_MEDIA_EXTENSIONS, PHOTO_EXTENSIONS, VIDEO_EXTENSIONS } from '../../shared/types';
+import { PHOTO_EXTENSIONS, VIDEO_EXTENSIONS } from '../../shared/types';
 import type { MediaFile } from '../../shared/types';
-import { parseExif } from './exif-parser';
+import { parseExifDate, generateThumbnail } from './exif-parser';
 
 const BATCH_SIZE = 50;
-const EXIF_CONCURRENCY = 10;
+const THUMB_CONCURRENCY = 3; // SD cards have poor random I/O
 
 let currentAbortController: AbortController | null = null;
 
@@ -59,45 +59,50 @@ async function walkDirectory(
   }
 }
 
-async function enrichBatch(files: MediaFile[]): Promise<MediaFile[]> {
-  const results: MediaFile[] = [];
-  for (let i = 0; i < files.length; i += EXIF_CONCURRENCY) {
-    const batch = files.slice(i, i + EXIF_CONCURRENCY);
-    const enriched = await Promise.all(
-      batch.map(async (file) => {
-        const exifData = await parseExif(file);
-        return { ...file, ...exifData };
-      }),
-    );
-    results.push(...enriched);
-  }
-  return results;
-}
-
 export async function scanFiles(
   sourcePath: string,
   onBatch: (files: MediaFile[]) => void,
+  onThumbnail: (filePath: string, thumbnail: string) => void,
 ): Promise<number> {
   currentAbortController?.abort();
   currentAbortController = new AbortController();
   const { signal } = currentAbortController;
 
+  // Phase 1: Walk directory and get metadata + dates (fast)
   const allFiles: MediaFile[] = [];
   await walkDirectory(sourcePath, allFiles, signal);
-
   if (signal.aborted) return 0;
 
-  let totalSent = 0;
+  // Enrich with dates only (no thumbnails yet)
   for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
-    if (signal.aborted) return totalSent;
-
+    if (signal.aborted) return 0;
     const batch = allFiles.slice(i, i + BATCH_SIZE);
-    const enriched = await enrichBatch(batch);
+    const enriched = await Promise.all(
+      batch.map(async (file) => {
+        const dateInfo = await parseExifDate(file);
+        return { ...file, ...dateInfo };
+      }),
+    );
     onBatch(enriched);
-    totalSent += enriched.length;
   }
 
-  return totalSent;
+  // Phase 2: Generate thumbnails in background (slow, streamed one by one)
+  for (let i = 0; i < allFiles.length; i += THUMB_CONCURRENCY) {
+    if (signal.aborted) break;
+    const batch = allFiles.slice(i, i + THUMB_CONCURRENCY);
+    await Promise.all(
+      batch.map(async (file) => {
+        if (signal.aborted) return;
+        if (file.type !== 'photo') return;
+        const thumbnail = await generateThumbnail(file.path, file.name);
+        if (thumbnail) {
+          onThumbnail(file.path, thumbnail);
+        }
+      }),
+    );
+  }
+
+  return allFiles.length;
 }
 
 export function cancelScan(): void {
