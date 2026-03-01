@@ -64,6 +64,7 @@ export async function scanFiles(
   sourcePath: string,
   onBatch: (files: MediaFile[]) => void,
   onThumbnail: (filePath: string, thumbnail: string) => void,
+  folderPattern?: string,
 ): Promise<number> {
   currentAbortController?.abort();
   currentAbortController = new AbortController();
@@ -80,7 +81,7 @@ export async function scanFiles(
     const batch = allFiles.slice(i, i + BATCH_SIZE);
     const enriched = await Promise.all(
       batch.map(async (file) => {
-        const dateInfo = await parseExifDate(file);
+        const dateInfo = await parseExifDate(file, folderPattern);
         return { ...file, ...dateInfo };
       }),
     );

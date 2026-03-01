@@ -13,8 +13,8 @@ const api = {
   },
 
   // Scanning
-  scanFiles: (sourcePath: string): Promise<void> =>
-    ipcRenderer.invoke(IPC.SCAN_START, sourcePath),
+  scanFiles: (sourcePath: string, folderPattern?: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.SCAN_START, sourcePath, folderPattern),
   onScanBatch: (cb: (files: MediaFile[]) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, files: MediaFile[]) => cb(files);
     ipcRenderer.on(IPC.SCAN_BATCH, handler);

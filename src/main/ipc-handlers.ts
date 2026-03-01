@@ -20,7 +20,7 @@ async function loadSettings(): Promise<AppSettings> {
     const data = await readFile(getSettingsPath(), 'utf-8');
     return JSON.parse(data);
   } catch {
-    return { lastDestination: '', skipDuplicates: true, saveFormat: 'original', jpegQuality: 90 };
+    return { lastDestination: '', skipDuplicates: true, saveFormat: 'original', jpegQuality: 90, folderPreset: 'date-flat', customPattern: '{YYYY}-{MM}-{DD}/{filename}' };
   }
 }
 
@@ -54,7 +54,7 @@ export function registerIpcHandlers(): void {
   });
 
   // Scanning
-  ipcMain.handle(IPC.SCAN_START, async (_event, sourcePath: string) => {
+  ipcMain.handle(IPC.SCAN_START, async (_event, sourcePath: string, folderPattern?: string) => {
     console.log(`[scan] Starting scan of: ${sourcePath}`);
     scannedFiles = [];
     try {
@@ -66,11 +66,11 @@ export function registerIpcHandlers(): void {
           sendToRenderer(IPC.SCAN_BATCH, batch);
         },
         (filePath, thumbnail) => {
-          // Update the cached file with thumbnail
           const file = scannedFiles.find((f) => f.path === filePath);
           if (file) file.thumbnail = thumbnail;
           sendToRenderer(IPC.SCAN_THUMBNAIL, filePath, thumbnail);
         },
+        folderPattern,
       );
       console.log(`[scan] Complete: ${total} files`);
       sendToRenderer(IPC.SCAN_COMPLETE, total);

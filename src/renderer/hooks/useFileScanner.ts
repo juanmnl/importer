@@ -1,8 +1,9 @@
 import { useEffect, useCallback } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
+import { FOLDER_PRESETS } from '../../shared/types';
 
 export function useFileScanner() {
-  const { selectedSource, destination, files, phase } = useAppState();
+  const { selectedSource, destination, files, phase, folderPreset, customPattern } = useAppState();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -41,13 +42,17 @@ export function useFileScanner() {
     const target = sourcePath || selectedSource;
     if (!target) return;
 
+    const pattern = folderPreset === 'custom'
+      ? customPattern
+      : FOLDER_PRESETS[folderPreset]?.pattern;
+
     dispatch({ type: 'SCAN_START' });
     try {
-      await window.electronAPI.scanFiles(target);
+      await window.electronAPI.scanFiles(target, pattern);
     } catch (err) {
       console.error('[renderer] scanFiles error:', err);
     }
-  }, [selectedSource, dispatch]);
+  }, [selectedSource, folderPreset, customPattern, dispatch]);
 
   const cancelScan = useCallback(async () => {
     await window.electronAPI.cancelScan();

@@ -161,10 +161,10 @@ export function ThumbnailGrid() {
               <path fillRule="evenodd" d="M2 3.75A.75.75 0 012.75 3h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 3.75zm0 4.167a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zm0 4.166a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zm0 4.167a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
             </svg>
           </button>
-          <div className="flex items-center gap-2 text-[11px] text-neutral-500">
-            {pickedCount > 0 && <span className="text-emerald-400">{pickedCount} picked</span>}
+          <div className="flex items-center gap-2 text-[11px] text-neutral-500 font-mono">
+            {pickedCount > 0 && <span className="text-yellow-400">{pickedCount} picked</span>}
             {pickedCount > 0 && rejectedCount > 0 && <span>&middot;</span>}
-            {rejectedCount > 0 && <span className="text-red-400">{rejectedCount} rejected</span>}
+            {rejectedCount > 0 && <span className="text-red-500">{rejectedCount} rejected</span>}
           </div>
           <div className="flex items-center gap-1 ml-auto text-[11px] text-neutral-600">
             <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400">P</kbd> pick
@@ -192,16 +192,16 @@ export function ThumbnailGrid() {
           <h2 className="text-sm font-medium text-neutral-300">
             {files.length} file{files.length !== 1 ? 's' : ''}
           </h2>
-          <div className="flex items-center gap-2 text-[11px] text-neutral-500">
+          <div className="flex items-center gap-2 text-[11px] text-neutral-500 font-mono">
             {photoCount > 0 && <span>{photoCount} photo{photoCount !== 1 ? 's' : ''}</span>}
             {photoCount > 0 && videoCount > 0 && <span>&middot;</span>}
             {videoCount > 0 && <span>{videoCount} video{videoCount !== 1 ? 's' : ''}</span>}
             {duplicateCount > 0 && <span>&middot;</span>}
-            {duplicateCount > 0 && <span className="text-yellow-500">{duplicateCount} imported</span>}
+            {duplicateCount > 0 && <span className="text-neutral-400">{duplicateCount} imported</span>}
             {pickedCount > 0 && <span>&middot;</span>}
-            {pickedCount > 0 && <span className="text-emerald-400">{pickedCount} picked</span>}
+            {pickedCount > 0 && <span className="text-yellow-400">{pickedCount} picked</span>}
             {rejectedCount > 0 && <span>&middot;</span>}
-            {rejectedCount > 0 && <span className="text-red-400">{rejectedCount} rejected</span>}
+            {rejectedCount > 0 && <span className="text-red-500">{rejectedCount} rejected</span>}
           </div>
           {thumbsLoading && (
             <div className="flex items-center gap-2">

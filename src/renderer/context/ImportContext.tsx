@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from 'react';
 import type { Volume, MediaFile, ImportProgress, ImportResult, SaveFormat } from '../../shared/types';
+import { FOLDER_PRESETS } from '../../shared/types';
 
 export type AppPhase = 'idle' | 'scanning' | 'ready' | 'importing' | 'complete';
 export type ViewMode = 'grid' | 'single';
@@ -13,6 +14,8 @@ interface State {
   skipDuplicates: boolean;
   saveFormat: SaveFormat;
   jpegQuality: number;
+  folderPreset: string;
+  customPattern: string;
   importProgress: ImportProgress | null;
   importResult: ImportResult | null;
   focusedIndex: number;
@@ -29,6 +32,8 @@ export type Action =
   | { type: 'SET_SKIP_DUPLICATES'; value: boolean }
   | { type: 'SET_SAVE_FORMAT'; format: SaveFormat }
   | { type: 'SET_JPEG_QUALITY'; quality: number }
+  | { type: 'SET_FOLDER_PRESET'; preset: string }
+  | { type: 'SET_CUSTOM_PATTERN'; pattern: string }
   | { type: 'IMPORT_START' }
   | { type: 'IMPORT_PROGRESS'; progress: ImportProgress }
   | { type: 'IMPORT_COMPLETE'; result: ImportResult }
@@ -51,6 +56,8 @@ const initialState: State = {
   skipDuplicates: true,
   saveFormat: 'original' as SaveFormat,
   jpegQuality: 90,
+  folderPreset: 'date-flat',
+  customPattern: FOLDER_PRESETS['date-flat'].pattern,
   importProgress: null,
   importResult: null,
   focusedIndex: -1,
@@ -77,6 +84,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, saveFormat: action.format };
     case 'SET_JPEG_QUALITY':
       return { ...state, jpegQuality: action.quality };
+    case 'SET_FOLDER_PRESET':
+      return { ...state, folderPreset: action.preset };
+    case 'SET_CUSTOM_PATTERN':
+      return { ...state, customPattern: action.pattern };
     case 'IMPORT_START':
       return { ...state, phase: 'importing', importProgress: null, importResult: null };
     case 'IMPORT_PROGRESS':

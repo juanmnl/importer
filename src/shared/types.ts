@@ -23,6 +23,16 @@ export interface MediaFile {
 
 export type SaveFormat = 'original' | 'jpeg' | 'tiff' | 'heic';
 
+// Folder naming presets for organizing imported files
+// Tokens: {YYYY}, {MM}, {DD}, {filename}, {ext}
+export const FOLDER_PRESETS: Record<string, { label: string; pattern: string }> = {
+  'date-flat':   { label: 'YYYY-MM-DD',           pattern: '{YYYY}-{MM}-{DD}/{filename}' },
+  'date-nested': { label: 'YYYY / MM / DD',       pattern: '{YYYY}/{MM}/{DD}/{filename}' },
+  'year-month':  { label: 'YYYY / MM',            pattern: '{YYYY}/{MM}/{filename}' },
+  'year':        { label: 'YYYY',                  pattern: '{YYYY}/{filename}' },
+  'flat':        { label: 'No folders',            pattern: '{filename}' },
+};
+
 export interface ImportConfig {
   sourcePath: string;
   destRoot: string;
@@ -59,6 +69,8 @@ export interface AppSettings {
   skipDuplicates: boolean;
   saveFormat: SaveFormat;
   jpegQuality: number;
+  folderPreset: string;      // key from FOLDER_PRESETS or 'custom'
+  customPattern: string;     // user-defined pattern when folderPreset is 'custom'
 }
 
 export const PHOTO_EXTENSIONS = new Set([

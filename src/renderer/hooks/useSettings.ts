@@ -16,6 +16,12 @@ export function useSettings() {
       if (typeof settings.jpegQuality === 'number') {
         dispatch({ type: 'SET_JPEG_QUALITY', quality: settings.jpegQuality });
       }
+      if (settings.folderPreset) {
+        dispatch({ type: 'SET_FOLDER_PRESET', preset: settings.folderPreset });
+      }
+      if (settings.customPattern) {
+        dispatch({ type: 'SET_CUSTOM_PATTERN', pattern: settings.customPattern });
+      }
     });
   }, [dispatch]);
 }

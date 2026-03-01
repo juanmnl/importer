@@ -24,16 +24,25 @@ async function getThumbDir(): Promise<string> {
   return thumbDir;
 }
 
-function formatDate(date: Date): string {
+// Resolve a folder pattern like "{YYYY}-{MM}-{DD}/{filename}" with actual values
+export function resolvePattern(pattern: string, date: Date, fileName: string, ext: string): string {
   const y = date.getFullYear().toString();
   const m = (date.getMonth() + 1).toString().padStart(2, '0');
   const d = date.getDate().toString().padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  const baseName = path.basename(fileName, ext);
+  return pattern
+    .replace(/\{YYYY\}/g, y)
+    .replace(/\{MM\}/g, m)
+    .replace(/\{DD\}/g, d)
+    .replace(/\{filename\}/g, fileName)
+    .replace(/\{name\}/g, baseName)
+    .replace(/\{ext\}/g, ext.replace('.', ''));
 }
 
 // Fast: only extract date, no thumbnail
 export async function parseExifDate(
   file: MediaFile,
+  folderPattern?: string,
 ): Promise<{ dateTaken?: string; destPath?: string; orientation?: number }> {
   let dateTaken: Date | null = null;
   let orientation: number | undefined;
@@ -62,10 +71,11 @@ export async function parseExifDate(
     }
   }
 
-  const dateStr = formatDate(dateTaken);
+  const pattern = folderPattern || '{YYYY}-{MM}-{DD}/{filename}';
+  const destPath = resolvePattern(pattern, dateTaken, file.name, file.extension);
   return {
     dateTaken: dateTaken.toISOString(),
-    destPath: `${dateStr}/${file.name}`,
+    destPath,
     orientation,
   };
 }

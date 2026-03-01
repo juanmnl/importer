@@ -1,6 +1,7 @@
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 import { useImport } from '../hooks/useImport';
 import type { SaveFormat } from '../../shared/types';
+import { FOLDER_PRESETS } from '../../shared/types';
 
 function formatSize(bytes: number): string {
   const gb = bytes / 1e9;
@@ -9,7 +10,7 @@ function formatSize(bytes: number): string {
 }
 
 export function DestinationPanel() {
-  const { destination, skipDuplicates, saveFormat, jpegQuality, files, phase, selectedSource } = useAppState();
+  const { destination, skipDuplicates, saveFormat, jpegQuality, folderPreset, customPattern, files, phase, selectedSource } = useAppState();
   const dispatch = useAppDispatch();
   const { startImport } = useImport();
 
@@ -25,6 +26,16 @@ export function DestinationPanel() {
     const value = !skipDuplicates;
     dispatch({ type: 'SET_SKIP_DUPLICATES', value });
     window.electronAPI.setSettings({ skipDuplicates: value });
+  };
+
+  const handleFolderPreset = (preset: string) => {
+    dispatch({ type: 'SET_FOLDER_PRESET', preset });
+    window.electronAPI.setSettings({ folderPreset: preset });
+  };
+
+  const handleCustomPattern = (pattern: string) => {
+    dispatch({ type: 'SET_CUSTOM_PATTERN', pattern });
+    window.electronAPI.setSettings({ customPattern: pattern });
   };
 
   const handleFormatChange = (format: SaveFormat) => {
@@ -105,6 +116,50 @@ export function DestinationPanel() {
         </p>
       </div>
 
+      {/* Folder structure */}
+      <div className="px-3 mb-4">
+        <h3 className="text-[11px] text-neutral-500 mb-2 uppercase tracking-wider">Folder Structure</h3>
+        <div className="space-y-1">
+          {Object.entries(FOLDER_PRESETS).map(([key, { label }]) => (
+            <button
+              key={key}
+              onClick={() => handleFolderPreset(key)}
+              className={`w-full px-2 py-1.5 text-xs text-left rounded transition-colors font-mono ${
+                folderPreset === key
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-neutral-700 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-600'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            onClick={() => handleFolderPreset('custom')}
+            className={`w-full px-2 py-1.5 text-xs text-left rounded transition-colors ${
+              folderPreset === 'custom'
+                ? 'bg-blue-600 text-white'
+                : 'bg-neutral-700 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-600'
+            }`}
+          >
+            Custom
+          </button>
+        </div>
+        {folderPreset === 'custom' && (
+          <div className="mt-2">
+            <input
+              type="text"
+              value={customPattern}
+              onChange={(e) => handleCustomPattern(e.target.value)}
+              placeholder="{YYYY}-{MM}-{DD}/{filename}"
+              className="w-full px-2 py-1.5 text-xs font-mono bg-neutral-700 border border-neutral-600 rounded text-neutral-200 placeholder-neutral-500 focus:border-blue-500 focus:outline-none"
+            />
+            <p className="text-[10px] text-neutral-600 mt-1">
+              {'{YYYY}'} {'{MM}'} {'{DD}'} {'{filename}'} {'{name}'} {'{ext}'}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Save format */}
       <div className="px-3 mb-4">
         <h3 className="text-[11px] text-neutral-500 mb-2 uppercase tracking-wider">Save Format</h3>
@@ -182,7 +237,7 @@ export function DestinationPanel() {
         {files.length > 0 && (
           <div className="text-xs text-neutral-500 mb-3">
             {importFiles.length} file{importFiles.length !== 1 ? 's' : ''} &middot; {formatSize(totalSize)}
-            {hasPicks && <span className="text-emerald-400/70"> &middot; {pickedCount} picked</span>}
+            {hasPicks && <span className="text-yellow-400/70"> &middot; {pickedCount} picked</span>}
             {skipDuplicates && duplicateCount > 0 && (
               <span className="text-yellow-500/70"> &middot; {duplicateCount} already imported</span>
             )}
