@@ -3,7 +3,7 @@ import type { Volume, MediaFile, ImportProgress, ImportResult, SaveFormat } from
 import { FOLDER_PRESETS } from '../../shared/types';
 
 export type AppPhase = 'idle' | 'scanning' | 'ready' | 'importing' | 'complete';
-export type ViewMode = 'grid' | 'single';
+export type ViewMode = 'grid' | 'single' | 'split';
 
 interface State {
   volumes: Volume[];
@@ -20,6 +20,9 @@ interface State {
   importResult: ImportResult | null;
   focusedIndex: number;
   viewMode: ViewMode;
+  theme: 'light' | 'dark';
+  showLeftPanel: boolean;
+  showRightPanel: boolean;
 }
 
 export type Action =
@@ -42,10 +45,16 @@ export type Action =
   | { type: 'SET_DUPLICATE'; filePath: string }
   | { type: 'CLEAR_DUPLICATES' }
   | { type: 'SET_PICK'; filePath: string; pick: 'selected' | 'rejected' | undefined }
+  | { type: 'SET_PICK_BATCH'; filePaths: string[]; pick: 'selected' | 'rejected' | undefined }
   | { type: 'CLEAR_PICKS' }
   | { type: 'SET_FOCUSED'; index: number }
   | { type: 'SET_VIEW_MODE'; mode: ViewMode }
+  | { type: 'SET_THEME'; theme: 'light' | 'dark' }
+  | { type: 'TOGGLE_LEFT_PANEL' }
+  | { type: 'TOGGLE_RIGHT_PANEL' }
   | { type: 'RESET_FILES' };
+
+const systemDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
 const initialState: State = {
   volumes: [],
@@ -62,6 +71,9 @@ const initialState: State = {
   importResult: null,
   focusedIndex: -1,
   viewMode: 'grid' as ViewMode,
+  theme: systemDark ? 'dark' : 'light',
+  showLeftPanel: true,
+  showRightPanel: true,
 };
 
 function reducer(state: State, action: Action): State {
@@ -122,6 +134,15 @@ function reducer(state: State, action: Action): State {
           f.path === action.filePath ? { ...f, pick: action.pick } : f,
         ),
       };
+    case 'SET_PICK_BATCH': {
+      const pathSet = new Set(action.filePaths);
+      return {
+        ...state,
+        files: state.files.map((f) =>
+          pathSet.has(f.path) ? { ...f, pick: action.pick } : f,
+        ),
+      };
+    }
     case 'CLEAR_PICKS':
       return {
         ...state,
@@ -131,6 +152,12 @@ function reducer(state: State, action: Action): State {
       return { ...state, focusedIndex: action.index };
     case 'SET_VIEW_MODE':
       return { ...state, viewMode: action.mode };
+    case 'SET_THEME':
+      return { ...state, theme: action.theme };
+    case 'TOGGLE_LEFT_PANEL':
+      return { ...state, showLeftPanel: !state.showLeftPanel };
+    case 'TOGGLE_RIGHT_PANEL':
+      return { ...state, showRightPanel: !state.showRightPanel };
     case 'RESET_FILES':
       return { ...state, files: [], phase: 'idle', focusedIndex: -1 };
     default:

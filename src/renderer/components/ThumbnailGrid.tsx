@@ -1,13 +1,16 @@
-import { useMemo, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useEffect, useCallback, useRef, useState } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 import { ThumbnailCard } from './ThumbnailCard';
 import { SingleView } from './SingleView';
 import { EmptyState } from './EmptyState';
 
 export function ThumbnailGrid() {
-  const { files, phase, selectedSource, focusedIndex, viewMode } = useAppState();
+  const { files, phase, selectedSource, focusedIndex, viewMode, showLeftPanel, showRightPanel } = useAppState();
   const dispatch = useAppDispatch();
   const gridRef = useRef<HTMLDivElement>(null);
+  const splitGridRef = useRef<HTMLDivElement>(null);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const lastClickedRef = useRef<number>(-1);
 
   const sortedFiles = useMemo(
     () => files.length > 0
@@ -16,7 +19,11 @@ export function ThumbnailGrid() {
     [files],
   );
 
-  // Compute grid columns for arrow key navigation
+  // Clear selection when source changes or view mode changes to single
+  useEffect(() => {
+    setSelectedIndices(new Set());
+  }, [selectedSource, viewMode === 'single']);
+
   const getColumnsCount = useCallback(() => {
     const grid = gridRef.current;
     if (!grid) return 1;
@@ -27,7 +34,25 @@ export function ThumbnailGrid() {
     dispatch({ type: 'SET_FOCUSED', index });
   }, [dispatch]);
 
+  const cyclePick = useCallback((index: number) => {
+    if (index < 0 || index >= sortedFiles.length) return;
+    const file = sortedFiles[index];
+    const next = file.pick === undefined ? 'selected'
+      : file.pick === 'selected' ? 'rejected'
+      : undefined;
+    dispatch({ type: 'SET_PICK', filePath: file.path, pick: next });
+  }, [sortedFiles, dispatch]);
+
   const pickFile = useCallback((pick: 'selected' | 'rejected' | undefined, advance: boolean) => {
+    // Batch mode: apply to all selected files
+    if (selectedIndices.size > 0) {
+      const paths = Array.from(selectedIndices)
+        .filter((i) => i >= 0 && i < sortedFiles.length)
+        .map((i) => sortedFiles[i].path);
+      dispatch({ type: 'SET_PICK_BATCH', filePaths: paths, pick });
+      return;
+    }
+    // Single mode
     if (focusedIndex < 0 || focusedIndex >= sortedFiles.length) return;
     const file = sortedFiles[focusedIndex];
     const newPick = file.pick === pick ? undefined : pick;
@@ -35,37 +60,69 @@ export function ThumbnailGrid() {
     if (advance && newPick !== undefined && focusedIndex < sortedFiles.length - 1) {
       setFocused(focusedIndex + 1);
     }
-  }, [focusedIndex, sortedFiles, dispatch, setFocused]);
+  }, [focusedIndex, sortedFiles, dispatch, setFocused, selectedIndices]);
 
-  const toggleViewMode = useCallback(() => {
-    const next = viewMode === 'grid' ? 'single' : 'grid';
-    dispatch({ type: 'SET_VIEW_MODE', mode: next });
-    // When entering single mode, focus first file if none focused
-    if (next === 'single' && focusedIndex < 0 && sortedFiles.length > 0) {
-      setFocused(0);
+  const handleCardClick = useCallback((index: number, e: React.MouseEvent) => {
+    const metaKey = e.metaKey || e.ctrlKey;
+
+    if (e.shiftKey && lastClickedRef.current >= 0) {
+      // Shift+Click: range select
+      const start = Math.min(lastClickedRef.current, index);
+      const end = Math.max(lastClickedRef.current, index);
+      const next = new Set(metaKey ? selectedIndices : new Set<number>());
+      for (let i = start; i <= end; i++) next.add(i);
+      setSelectedIndices(next);
+      setFocused(index);
+    } else if (metaKey) {
+      // Cmd/Ctrl+Click: toggle individual
+      const next = new Set(selectedIndices);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      setSelectedIndices(next);
+      setFocused(index);
+      lastClickedRef.current = index;
+    } else {
+      // Plain click: clear selection, focus
+      setSelectedIndices(new Set());
+      setFocused(index);
+      lastClickedRef.current = index;
     }
-  }, [viewMode, focusedIndex, sortedFiles.length, dispatch, setFocused]);
+  }, [selectedIndices, setFocused]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (sortedFiles.length === 0) return;
 
-      const cols = viewMode === 'single' ? 1 : getColumnsCount();
+      const cols = viewMode === 'single' || viewMode === 'split' ? 1 : getColumnsCount();
+
+      // Cmd/Ctrl+A: select all
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a' && viewMode !== 'single') {
+        e.preventDefault();
+        const all = new Set<number>();
+        for (let i = 0; i < sortedFiles.length; i++) all.add(i);
+        setSelectedIndices(all);
+        return;
+      }
 
       switch (e.key) {
         case 'ArrowRight':
           e.preventDefault();
+          setSelectedIndices(new Set());
           setFocused(Math.min(focusedIndex + 1, sortedFiles.length - 1));
           break;
         case 'ArrowLeft':
           e.preventDefault();
+          setSelectedIndices(new Set());
           setFocused(Math.max(focusedIndex - 1, 0));
           break;
         case 'ArrowDown':
           e.preventDefault();
-          if (viewMode === 'single') {
+          setSelectedIndices(new Set());
+          if (viewMode === 'single' || viewMode === 'split') {
             setFocused(Math.min(focusedIndex + 1, sortedFiles.length - 1));
           } else {
             setFocused(Math.min(focusedIndex + cols, sortedFiles.length - 1));
@@ -73,7 +130,8 @@ export function ThumbnailGrid() {
           break;
         case 'ArrowUp':
           e.preventDefault();
-          if (viewMode === 'single') {
+          setSelectedIndices(new Set());
+          if (viewMode === 'single' || viewMode === 'split') {
             setFocused(Math.max(focusedIndex - 1, 0));
           } else {
             setFocused(Math.max(focusedIndex - cols, 0));
@@ -94,12 +152,11 @@ export function ThumbnailGrid() {
           e.preventDefault();
           pickFile(undefined, false);
           break;
-        case 'Enter':
-          e.preventDefault();
-          toggleViewMode();
-          break;
         case 'Escape':
-          if (viewMode === 'single') {
+          if (selectedIndices.size > 0) {
+            e.preventDefault();
+            setSelectedIndices(new Set());
+          } else if (viewMode === 'single' || viewMode === 'split') {
             e.preventDefault();
             dispatch({ type: 'SET_VIEW_MODE', mode: 'grid' });
           }
@@ -108,13 +165,17 @@ export function ThumbnailGrid() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [focusedIndex, sortedFiles, viewMode, getColumnsCount, setFocused, pickFile, toggleViewMode, dispatch]);
+  }, [focusedIndex, sortedFiles, viewMode, getColumnsCount, setFocused, pickFile, dispatch, selectedIndices]);
 
-  // Scroll focused card into view (grid mode)
   useEffect(() => {
-    if (viewMode !== 'grid' || focusedIndex < 0 || !gridRef.current) return;
-    const card = gridRef.current.children[focusedIndex] as HTMLElement | undefined;
-    card?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (focusedIndex < 0) return;
+    if (viewMode === 'grid' && gridRef.current) {
+      const card = gridRef.current.children[focusedIndex] as HTMLElement | undefined;
+      card?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else if (viewMode === 'split' && splitGridRef.current) {
+      const card = splitGridRef.current.children[focusedIndex] as HTMLElement | undefined;
+      card?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
   }, [focusedIndex, viewMode]);
 
   if (!selectedSource) {
@@ -124,8 +185,8 @@ export function ThumbnailGrid() {
   if (phase === 'scanning' && files.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-2 border-neutral-600 border-t-blue-500 rounded-full animate-spin" />
-        <p className="text-sm text-neutral-400">Scanning files...</p>
+        <div className="w-8 h-8 border-2 border-text-muted border-t-text rounded-full animate-spin" />
+        <p className="text-sm text-text-secondary">Scanning files...</p>
       </div>
     );
   }
@@ -133,136 +194,258 @@ export function ThumbnailGrid() {
   if (files.length === 0 && phase !== 'scanning') {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-sm text-neutral-500">No supported files found</p>
+        <p className="text-sm text-text-secondary">No supported files found</p>
       </div>
     );
   }
 
-  const photoCount = files.filter((f) => f.type === 'photo').length;
-  const videoCount = files.filter((f) => f.type === 'video').length;
   const thumbCount = files.filter((f) => f.thumbnail).length;
-  const duplicateCount = files.filter((f) => f.duplicate).length;
-  const pickedCount = files.filter((f) => f.pick === 'selected').length;
-  const rejectedCount = files.filter((f) => f.pick === 'rejected').length;
   const thumbsLoading = phase === 'scanning' && files.length > 0 && thumbCount < files.length;
+  const focusedFile = focusedIndex >= 0 && focusedIndex < sortedFiles.length ? sortedFiles[focusedIndex] : null;
+  const isSingle = (viewMode === 'single' || viewMode === 'split') && focusedFile;
+  const hasBatchSelection = selectedIndices.size > 0;
 
-  // Single view mode
-  if (viewMode === 'single' && focusedIndex >= 0 && focusedIndex < sortedFiles.length) {
-    return (
-      <div className="h-full flex flex-col">
-        {/* Compact header */}
-        <div className="shrink-0 px-4 py-2 flex items-center gap-3 border-b border-neutral-700/50">
+  const floatingToolbar = (focusedFile || hasBatchSelection) ? (
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-px bg-surface-alt/95 backdrop-blur-sm border border-border rounded-lg shadow-lg overflow-hidden z-20">
+      {!hasBatchSelection && (
+        <>
           <button
-            onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'grid' })}
-            className="text-neutral-400 hover:text-neutral-200 transition-colors"
-            title="Back to grid (Esc)"
+            onClick={() => setFocused(Math.max(focusedIndex - 1, 0))}
+            disabled={focusedIndex <= 0}
+            className="px-2 py-1.5 text-text-secondary hover:text-text hover:bg-surface-raised transition-colors disabled:opacity-25"
+            title="Previous"
           >
-            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M2 3.75A.75.75 0 012.75 3h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 3.75zm0 4.167a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zm0 4.166a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zm0 4.167a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+            <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
             </svg>
           </button>
-          <div className="flex items-center gap-2 text-[11px] text-neutral-500 font-mono">
-            {pickedCount > 0 && <span className="text-yellow-400">{pickedCount} picked</span>}
-            {pickedCount > 0 && rejectedCount > 0 && <span>&middot;</span>}
-            {rejectedCount > 0 && <span className="text-red-500">{rejectedCount} rejected</span>}
-          </div>
-          <div className="flex items-center gap-1 ml-auto text-[11px] text-neutral-600">
-            <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400">P</kbd> pick
-            <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400 ml-1">X</kbd> reject
-            <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400 ml-1">&#8592;&#8594;</kbd> nav
-          </div>
-        </div>
-        <div className="flex-1 min-h-0">
-          <SingleView
-            file={sortedFiles[focusedIndex]}
-            index={focusedIndex}
-            total={sortedFiles.length}
-          />
-        </div>
-      </div>
-    );
-  }
+          <div className="w-px h-4 bg-border" />
+        </>
+      )}
+      {hasBatchSelection && (
+        <>
+          <span className="px-2.5 py-1.5 text-[11px] text-blue-400 font-medium">{selectedIndices.size}</span>
+          <div className="w-px h-4 bg-border" />
+        </>
+      )}
+      <button
+        onClick={() => pickFile('selected', false)}
+        className={`px-3 py-1.5 text-[11px] transition-colors ${
+          !hasBatchSelection && focusedFile?.pick === 'selected'
+            ? 'bg-yellow-400/20 text-yellow-400'
+            : 'text-text-secondary hover:text-text hover:bg-surface-raised'
+        }`}
+        title="Select (P)"
+      >
+        Select
+      </button>
+      <div className="w-px h-4 bg-border" />
+      <button
+        onClick={() => pickFile('rejected', false)}
+        className={`px-3 py-1.5 text-[11px] transition-colors ${
+          !hasBatchSelection && focusedFile?.pick === 'rejected'
+            ? 'bg-red-500/20 text-red-400'
+            : 'text-text-secondary hover:text-text hover:bg-surface-raised'
+        }`}
+        title="Reject (X)"
+      >
+        Reject
+      </button>
+      <div className="w-px h-4 bg-border" />
+      <button
+        onClick={() => pickFile(undefined, false)}
+        className={`px-3 py-1.5 text-[11px] transition-colors ${
+          !hasBatchSelection && focusedFile?.pick === undefined
+            ? 'text-text-muted'
+            : 'text-text-secondary hover:text-text hover:bg-surface-raised'
+        }`}
+        title="Clear (U)"
+      >
+        Clear
+      </button>
+      {!hasBatchSelection && (
+        <>
+          <div className="w-px h-4 bg-border" />
+          <button
+            onClick={() => setFocused(Math.min(focusedIndex + 1, sortedFiles.length - 1))}
+            disabled={focusedIndex >= sortedFiles.length - 1}
+            className="px-2 py-1.5 text-text-secondary hover:text-text hover:bg-surface-raised transition-colors disabled:opacity-25"
+            title="Next"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </>
+      )}
+    </div>
+  ) : null;
 
-  // Grid view mode
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="shrink-0 px-4 pt-4 pb-0">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-sm font-medium text-neutral-300">
-            {files.length} file{files.length !== 1 ? 's' : ''}
-          </h2>
-          <div className="flex items-center gap-2 text-[11px] text-neutral-500 font-mono">
-            {photoCount > 0 && <span>{photoCount} photo{photoCount !== 1 ? 's' : ''}</span>}
-            {photoCount > 0 && videoCount > 0 && <span>&middot;</span>}
-            {videoCount > 0 && <span>{videoCount} video{videoCount !== 1 ? 's' : ''}</span>}
-            {duplicateCount > 0 && <span>&middot;</span>}
-            {duplicateCount > 0 && <span className="text-neutral-400">{duplicateCount} imported</span>}
-            {pickedCount > 0 && <span>&middot;</span>}
-            {pickedCount > 0 && <span className="text-yellow-400">{pickedCount} picked</span>}
-            {rejectedCount > 0 && <span>&middot;</span>}
-            {rejectedCount > 0 && <span className="text-red-500">{rejectedCount} rejected</span>}
-          </div>
-          {thumbsLoading && (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-neutral-600 border-t-blue-500 rounded-full animate-spin" />
-              <span className="text-[11px] text-neutral-500">loading previews {thumbCount}/{files.length}</span>
-            </div>
-          )}
+      {/* Unified header */}
+      <div className="shrink-0 px-2 py-1.5 flex items-center border-b border-border">
+        {/* Left panel toggle */}
+        <button
+          onClick={() => dispatch({ type: 'TOGGLE_LEFT_PANEL' })}
+          className="p-0.5 rounded transition-colors hover:bg-surface-raised shrink-0"
+          title={showLeftPanel ? 'Hide source panel' : 'Show source panel'}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+            <rect x="0.5" y="0.5" width="15" height="15" rx="1.5" stroke="var(--color-text-muted)" strokeWidth="1" />
+            <rect x="2" y="2" width="3.5" height="12" rx="0.75" fill={showLeftPanel ? 'var(--color-text-secondary)' : 'var(--color-text-faint)'} />
+          </svg>
+        </button>
 
-          {/* View mode toggle */}
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'grid' })}
-              className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'text-neutral-200 bg-neutral-700' : 'text-neutral-500 hover:text-neutral-300'}`}
-              title="Grid view"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.25 2A2.25 2.25 0 002 4.25v2.5A2.25 2.25 0 004.25 9h2.5A2.25 2.25 0 009 6.75v-2.5A2.25 2.25 0 006.75 2h-2.5zm0 9A2.25 2.25 0 002 13.25v2.5A2.25 2.25 0 004.25 18h2.5A2.25 2.25 0 009 15.75v-2.5A2.25 2.25 0 006.75 11h-2.5zm9-9A2.25 2.25 0 0011 4.25v2.5A2.25 2.25 0 0013.25 9h2.5A2.25 2.25 0 0018 6.75v-2.5A2.25 2.25 0 0015.75 2h-2.5zm0 9A2.25 2.25 0 0011 13.25v2.5A2.25 2.25 0 0013.25 18h2.5A2.25 2.25 0 0018 15.75v-2.5A2.25 2.25 0 0015.75 11h-2.5z" clipRule="evenodd" />
-              </svg>
-            </button>
-            <button
-              onClick={() => {
-                dispatch({ type: 'SET_VIEW_MODE', mode: 'single' });
-                if (focusedIndex < 0 && sortedFiles.length > 0) setFocused(0);
-              }}
-              className={`p-1 rounded transition-colors ${viewMode === 'single' ? 'text-neutral-200 bg-neutral-700' : 'text-neutral-500 hover:text-neutral-300'}`}
-              title="Single view (Enter)"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M1 4.75C1 3.784 1.784 3 2.75 3h14.5c.966 0 1.75.784 1.75 1.75v10.515a1.75 1.75 0 01-1.75 1.75H2.75A1.75 1.75 0 011 15.265V4.75zm1.5 0a.25.25 0 01.25-.25h14.5a.25.25 0 01.25.25v10.515a.25.25 0 01-.25.25H2.75a.25.25 0 01-.25-.25V4.75z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </div>
+        <div className="w-px h-3.5 bg-border mx-2 shrink-0" />
+
+        {/* Title */}
+        <div className="flex items-center gap-2 min-w-0">
+          {hasBatchSelection ? (
+            <span className="text-xs text-blue-400 font-medium">{selectedIndices.size} selected</span>
+          ) : isSingle ? (
+            <>
+              <span className="text-xs font-mono text-text truncate">{focusedFile.name}</span>
+              <span className="text-[10px] text-text-muted font-mono shrink-0">{focusedIndex + 1}/{sortedFiles.length}</span>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-text">{files.length} photo{files.length !== 1 ? 's' : ''}</span>
+              {thumbsLoading && (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 border-[1.5px] border-text-muted border-t-text rounded-full animate-spin" />
+                  <span className="text-[10px] text-text-muted">{thumbCount}/{files.length}</span>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
-        {/* Keyboard hints */}
-        {files.length > 0 && phase === 'ready' && focusedIndex < 0 && (
-          <div className="mb-3 text-[11px] text-neutral-600">
-            Click a photo or press <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400">&#8594;</kbd> to start culling &mdash;
-            <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400 ml-1">P</kbd> pick
-            <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400 ml-1">X</kbd> reject
-            <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400 ml-1">U</kbd> unflag
-            <kbd className="px-1 py-0.5 bg-neutral-700/50 rounded text-neutral-400 ml-1">Enter</kbd> single view
-          </div>
-        )}
+        <div className="ml-auto w-px h-3.5 bg-border mx-2 shrink-0" />
+
+        {/* View mode toggle */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'grid' })}
+            className={`p-0.5 rounded transition-colors ${viewMode === 'grid' ? 'text-text bg-surface-raised' : 'text-text-muted hover:text-text'}`}
+            title="Grid view"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.25 2A2.25 2.25 0 002 4.25v2.5A2.25 2.25 0 004.25 9h2.5A2.25 2.25 0 009 6.75v-2.5A2.25 2.25 0 006.75 2h-2.5zm0 9A2.25 2.25 0 002 13.25v2.5A2.25 2.25 0 004.25 18h2.5A2.25 2.25 0 009 15.75v-2.5A2.25 2.25 0 006.75 11h-2.5zm9-9A2.25 2.25 0 0011 4.25v2.5A2.25 2.25 0 0013.25 9h2.5A2.25 2.25 0 0018 6.75v-2.5A2.25 2.25 0 0015.75 2h-2.5zm0 9A2.25 2.25 0 0011 13.25v2.5A2.25 2.25 0 0013.25 18h2.5A2.25 2.25 0 0018 15.75v-2.5A2.25 2.25 0 0015.75 11h-2.5z" clipRule="evenodd" />
+            </svg>
+          </button>
+          <button
+            onClick={() => {
+              dispatch({ type: 'SET_VIEW_MODE', mode: 'split' });
+              if (focusedIndex < 0 && sortedFiles.length > 0) setFocused(0);
+            }}
+            className={`p-0.5 rounded transition-colors ${viewMode === 'split' ? 'text-text bg-surface-raised' : 'text-text-muted hover:text-text'}`}
+            title="Split view"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M2 4.75C2 3.784 2.784 3 3.75 3h4.836c.464 0 .914.184 1.244.513l.17.169V16.318l-.17-.169a1.76 1.76 0 00-1.244-.513H3.75A1.75 1.75 0 012 13.886V4.75zm1.5 0a.25.25 0 01.25-.25h4.836a.25.25 0 01.177.073L9 4.81v10.38l-.237-.237a.25.25 0 00-.177-.073H3.75a.25.25 0 01-.25-.25V4.75z" clipRule="evenodd" />
+              <path fillRule="evenodd" d="M18 4.75c0-.966-.784-1.75-1.75-1.75h-4.836a1.76 1.76 0 00-1.244.513L10 3.682V15.68l.17-.169a1.76 1.76 0 011.244-.513h4.836A1.75 1.75 0 0018 13.25V4.75zm-1.5 0a.25.25 0 00-.25-.25h-4.836a.25.25 0 00-.177.073L11 4.81v10.38l.237-.237a.25.25 0 01.177-.073h4.836a.25.25 0 00.25-.25V4.75z" clipRule="evenodd" />
+            </svg>
+          </button>
+          <button
+            onClick={() => {
+              dispatch({ type: 'SET_VIEW_MODE', mode: 'single' });
+              if (focusedIndex < 0 && sortedFiles.length > 0) setFocused(0);
+            }}
+            className={`p-0.5 rounded transition-colors ${viewMode === 'single' ? 'text-text bg-surface-raised' : 'text-text-muted hover:text-text'}`}
+            title="Detail view"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M1 4.75C1 3.784 1.784 3 2.75 3h14.5c.966 0 1.75.784 1.75 1.75v10.515a1.75 1.75 0 01-1.75 1.75H2.75A1.75 1.75 0 011 15.265V4.75zm1.5 0a.25.25 0 01.25-.25h14.5a.25.25 0 01.25.25v10.515a.25.25 0 01-.25.25H2.75a.25.25 0 01-.25-.25V4.75z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="w-px h-3.5 bg-border mx-2 shrink-0" />
+
+        {/* Right panel toggle */}
+        <button
+          onClick={() => dispatch({ type: 'TOGGLE_RIGHT_PANEL' })}
+          className="p-0.5 rounded transition-colors hover:bg-surface-raised shrink-0"
+          title={showRightPanel ? 'Hide settings panel' : 'Show settings panel'}
+        >
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+            <rect x="0.5" y="0.5" width="15" height="15" rx="1.5" stroke="var(--color-text-muted)" strokeWidth="1" />
+            <rect x="10.5" y="2" width="3.5" height="12" rx="0.75" fill={showRightPanel ? 'var(--color-text-secondary)' : 'var(--color-text-faint)'} />
+          </svg>
+        </button>
       </div>
 
-      {/* Grid */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
-        <div
-          ref={gridRef}
-          className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3"
-        >
-          {sortedFiles.map((file, i) => (
-            <ThumbnailCard
-              key={file.path}
-              file={file}
-              focused={i === focusedIndex}
-              onClick={() => setFocused(i)}
+      {/* Content */}
+      <div className="flex-1 min-h-0">
+        {viewMode === 'single' && focusedFile ? (
+          <div className="h-full relative">
+            <SingleView
+              file={focusedFile}
+              index={focusedIndex}
+              total={sortedFiles.length}
             />
-          ))}
-        </div>
+            {floatingToolbar}
+          </div>
+        ) : viewMode === 'split' ? (
+          <div className="h-full flex">
+            <div className="w-[280px] shrink-0 border-r border-border overflow-y-auto px-2 pt-2 pb-16">
+              <div
+                ref={splitGridRef}
+                className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2"
+              >
+                {sortedFiles.map((file, i) => (
+                  <ThumbnailCard
+                    key={file.path}
+                    file={file}
+                    focused={i === focusedIndex}
+                    selected={selectedIndices.has(i)}
+                    onClick={(e) => handleCardClick(i, e)}
+                    onDoubleClick={() => setFocused(i)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0 relative">
+              {focusedFile ? (
+                <SingleView
+                  file={focusedFile}
+                  index={focusedIndex}
+                  total={sortedFiles.length}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-sm text-text-muted">Select a photo to preview</p>
+                </div>
+              )}
+              {floatingToolbar}
+            </div>
+          </div>
+        ) : (
+          <div className="h-full relative">
+            <div className="h-full overflow-y-auto px-4 pt-3 pb-16">
+              <div
+                ref={gridRef}
+                className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3"
+              >
+                {sortedFiles.map((file, i) => (
+                  <ThumbnailCard
+                    key={file.path}
+                    file={file}
+                    focused={i === focusedIndex}
+                    selected={selectedIndices.has(i)}
+                    onClick={(e) => handleCardClick(i, e)}
+                    onDoubleClick={() => {
+                      setFocused(i);
+                      dispatch({ type: 'SET_VIEW_MODE', mode: 'single' });
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            {floatingToolbar}
+          </div>
+        )}
       </div>
     </div>
   );

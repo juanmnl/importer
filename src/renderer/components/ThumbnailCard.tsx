@@ -3,7 +3,9 @@ import type { MediaFile } from '../../shared/types';
 interface ThumbnailCardProps {
   file: MediaFile;
   focused?: boolean;
-  onClick?: () => void;
+  selected?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+  onDoubleClick?: () => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -43,7 +45,7 @@ function RejectX() {
   );
 }
 
-export function ThumbnailCard({ file, focused = false, onClick }: ThumbnailCardProps) {
+export function ThumbnailCard({ file, focused = false, selected = false, onClick, onDoubleClick }: ThumbnailCardProps) {
   const isVideo = file.type === 'video';
   const portrait = isPortrait(file.orientation);
   const isPicked = file.pick === 'selected';
@@ -55,10 +57,11 @@ export function ThumbnailCard({ file, focused = false, onClick }: ThumbnailCardP
         isRejected ? 'opacity-50' : ''
       } ${file.duplicate && !file.pick ? 'opacity-40' : ''}`}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
     >
       {/* Frame */}
-      <div className={`relative bg-neutral-900 overflow-hidden ${
-        focused && !isPicked ? 'ring-2 ring-neutral-400/60' : ''
+      <div className={`relative bg-surface overflow-hidden ${
+        selected ? 'ring-2 ring-blue-500' : focused && !isPicked ? 'ring-2 ring-text-secondary/60' : ''
       }`}>
         {/* Image */}
         <div className="aspect-[4/3] relative flex items-center justify-center">
@@ -71,11 +74,11 @@ export function ThumbnailCard({ file, focused = false, onClick }: ThumbnailCardP
               loading="lazy"
             />
           ) : isVideo ? (
-            <svg className="w-10 h-10 text-neutral-700" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-10 h-10 text-text-faint" viewBox="0 0 24 24" fill="currentColor">
               <path d="M4.5 4.5a3 3 0 00-3 3v9a3 3 0 003 3h8.25a3 3 0 003-3v-9a3 3 0 00-3-3H4.5zM19.94 18.75l-2.69-2.69V7.94l2.69-2.69c.944-.945 2.56-.276 2.56 1.06v11.38c0 1.336-1.616 2.005-2.56 1.06z" />
             </svg>
           ) : (
-            <svg className="w-10 h-10 text-neutral-700" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="w-10 h-10 text-text-faint" viewBox="0 0 24 24" fill="currentColor">
               <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 012.25-2.25h16.5A2.25 2.25 0 0122.5 6v12a2.25 2.25 0 01-2.25 2.25H3.75A2.25 2.25 0 011.5 18V6zM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0021 18v-1.94l-2.69-2.689a1.5 1.5 0 00-2.12 0l-.88.879.97.97a.75.75 0 11-1.06 1.06l-5.16-5.159a1.5 1.5 0 00-2.12 0L3 16.061zm10.125-7.81a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0z" clipRule="evenodd" />
             </svg>
           )}
@@ -104,8 +107,8 @@ export function ThumbnailCard({ file, focused = false, onClick }: ThumbnailCardP
 
       {/* Frame number / file info — film strip style */}
       <div className="mt-1 flex items-center justify-between px-0.5">
-        <span className="text-[10px] text-neutral-500 font-mono truncate">{file.name}</span>
-        <span className="text-[10px] text-neutral-600 font-mono shrink-0 ml-1">{formatFileSize(file.size)}</span>
+        <span className="text-[10px] text-text-secondary font-mono truncate">{file.name}</span>
+        <span className="text-[10px] text-text-muted font-mono shrink-0 ml-1">{formatFileSize(file.size)}</span>
       </div>
     </div>
   );
