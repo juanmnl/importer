@@ -20,7 +20,7 @@ async function loadSettings(): Promise<AppSettings> {
     const data = await readFile(getSettingsPath(), 'utf-8');
     return JSON.parse(data);
   } catch {
-    return { lastDestination: '', skipDuplicates: true };
+    return { lastDestination: '', skipDuplicates: true, saveFormat: 'original', jpegQuality: 90 };
   }
 }
 

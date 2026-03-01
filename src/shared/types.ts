@@ -21,10 +21,14 @@ export interface MediaFile {
   orientation?: number; // EXIF orientation (1-8), 6/8 = portrait
 }
 
+export type SaveFormat = 'original' | 'jpeg' | 'tiff' | 'heic';
+
 export interface ImportConfig {
   sourcePath: string;
   destRoot: string;
   skipDuplicates: boolean;
+  saveFormat: SaveFormat;
+  jpegQuality: number; // 1-100, only used when saveFormat is 'jpeg'
 }
 
 export interface ImportProgress {
@@ -53,6 +57,8 @@ export interface ImportError {
 export interface AppSettings {
   lastDestination: string;
   skipDuplicates: boolean;
+  saveFormat: SaveFormat;
+  jpegQuality: number;
 }
 
 export const PHOTO_EXTENSIONS = new Set([

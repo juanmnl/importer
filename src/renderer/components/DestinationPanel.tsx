@@ -1,5 +1,6 @@
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 import { useImport } from '../hooks/useImport';
+import type { SaveFormat } from '../../shared/types';
 
 function formatSize(bytes: number): string {
   const gb = bytes / 1e9;
@@ -8,7 +9,7 @@ function formatSize(bytes: number): string {
 }
 
 export function DestinationPanel() {
-  const { destination, skipDuplicates, files, phase, selectedSource } = useAppState();
+  const { destination, skipDuplicates, saveFormat, jpegQuality, files, phase, selectedSource } = useAppState();
   const dispatch = useAppDispatch();
   const { startImport } = useImport();
 
@@ -24,6 +25,16 @@ export function DestinationPanel() {
     const value = !skipDuplicates;
     dispatch({ type: 'SET_SKIP_DUPLICATES', value });
     window.electronAPI.setSettings({ skipDuplicates: value });
+  };
+
+  const handleFormatChange = (format: SaveFormat) => {
+    dispatch({ type: 'SET_SAVE_FORMAT', format });
+    window.electronAPI.setSettings({ saveFormat: format });
+  };
+
+  const handleQualityChange = (quality: number) => {
+    dispatch({ type: 'SET_JPEG_QUALITY', quality });
+    window.electronAPI.setSettings({ jpegQuality: quality });
   };
 
   const duplicateCount = files.filter((f) => f.duplicate).length;
@@ -92,6 +103,52 @@ export function DestinationPanel() {
         <p className="text-[11px] text-neutral-600 mt-1 ml-6">
           Files matching name + size
         </p>
+      </div>
+
+      {/* Save format */}
+      <div className="px-3 mb-4">
+        <h3 className="text-[11px] text-neutral-500 mb-2 uppercase tracking-wider">Save Format</h3>
+        <div className="grid grid-cols-2 gap-1.5">
+          {([
+            ['original', 'Original'],
+            ['jpeg', 'JPEG'],
+            ['tiff', 'TIFF'],
+            ['heic', 'HEIC'],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => handleFormatChange(value)}
+              className={`px-2 py-1.5 text-xs rounded transition-colors ${
+                saveFormat === value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-neutral-700 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-600'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {saveFormat === 'jpeg' && (
+          <div className="mt-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] text-neutral-500">Quality</span>
+              <span className="text-[11px] text-neutral-400 font-mono">{jpegQuality}%</span>
+            </div>
+            <input
+              type="range"
+              min={50}
+              max={100}
+              value={jpegQuality}
+              onChange={(e) => handleQualityChange(Number(e.target.value))}
+              className="w-full h-1 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+        )}
+        {saveFormat !== 'original' && (
+          <p className="text-[11px] text-neutral-600 mt-1.5">
+            Files will be converted via sips
+          </p>
+        )}
       </div>
 
       {/* Folder structure preview */}

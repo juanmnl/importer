@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 
 export function useImport() {
-  const { selectedSource, destination, skipDuplicates } = useAppState();
+  const { selectedSource, destination, skipDuplicates, saveFormat, jpegQuality } = useAppState();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -20,9 +20,11 @@ export function useImport() {
       sourcePath: selectedSource,
       destRoot: destination,
       skipDuplicates,
+      saveFormat,
+      jpegQuality,
     });
     dispatch({ type: 'IMPORT_COMPLETE', result });
-  }, [selectedSource, destination, skipDuplicates, dispatch]);
+  }, [selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, dispatch]);
 
   const cancelImport = useCallback(async () => {
     await window.electronAPI.cancelImport();

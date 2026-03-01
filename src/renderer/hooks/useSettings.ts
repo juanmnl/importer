@@ -10,6 +10,12 @@ export function useSettings() {
         dispatch({ type: 'SET_DESTINATION', path: settings.lastDestination });
       }
       dispatch({ type: 'SET_SKIP_DUPLICATES', value: settings.skipDuplicates });
+      if (settings.saveFormat) {
+        dispatch({ type: 'SET_SAVE_FORMAT', format: settings.saveFormat });
+      }
+      if (typeof settings.jpegQuality === 'number') {
+        dispatch({ type: 'SET_JPEG_QUALITY', quality: settings.jpegQuality });
+      }
     });
   }, [dispatch]);
 }
