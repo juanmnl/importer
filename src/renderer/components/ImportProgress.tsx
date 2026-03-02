@@ -18,14 +18,14 @@ export function ImportProgress() {
     : 0;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-      <div className="bg-neutral-800 rounded-xl border border-neutral-700 p-8 max-w-md w-full mx-4 shadow-2xl">
-        <h2 className="text-lg font-medium text-neutral-100 mb-6">Importing Photos</h2>
+    <div className="fixed inset-0 z-50 bg-surface-overlay flex items-center justify-center">
+      <div className="bg-surface-alt rounded-lg border border-border p-8 max-w-md w-full mx-4 shadow-2xl">
+        <h2 className="text-lg font-medium text-text mb-6">Importing Photos</h2>
 
         {/* Progress bar */}
-        <div className="h-2 bg-neutral-700 rounded-full mb-4 overflow-hidden">
+        <div className="h-2 bg-surface-raised rounded-full mb-4 overflow-hidden">
           <div
-            className="h-full bg-blue-500 rounded-full transition-[width] duration-300 ease-out"
+            className="h-full bg-accent rounded-full transition-[width] duration-300 ease-out"
             style={{ width: `${percent}%` }}
           />
         </div>
@@ -33,40 +33,40 @@ export function ImportProgress() {
         {/* Stats */}
         <div className="space-y-2 mb-6">
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Progress</span>
-            <span className="text-neutral-200 font-mono">
+            <span className="text-text-secondary">Progress</span>
+            <span className="text-text font-mono">
               {importProgress.currentIndex} / {importProgress.totalFiles}
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Transferred</span>
-            <span className="text-neutral-200 font-mono">
+            <span className="text-text-secondary">Transferred</span>
+            <span className="text-text font-mono">
               {formatSize(importProgress.bytesTransferred)} / {formatSize(importProgress.totalBytes)}
             </span>
           </div>
           {importProgress.skipped > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-neutral-400">Skipped</span>
+              <span className="text-text-secondary">Skipped</span>
               <span className="text-yellow-400 font-mono">{importProgress.skipped}</span>
             </div>
           )}
           {importProgress.errors > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-neutral-400">Errors</span>
+              <span className="text-text-secondary">Errors</span>
               <span className="text-red-400 font-mono">{importProgress.errors}</span>
             </div>
           )}
         </div>
 
         {/* Current file */}
-        <div className="text-xs text-neutral-500 truncate mb-6" title={importProgress.currentFile}>
+        <div className="text-xs text-text-secondary truncate mb-6" title={importProgress.currentFile}>
           {importProgress.currentFile}
         </div>
 
         {/* Cancel button */}
         <button
           onClick={cancelImport}
-          className="w-full py-2 rounded-md text-sm bg-neutral-700 hover:bg-neutral-600 text-neutral-300 transition-colors"
+          className="w-full py-2 rounded text-sm bg-surface-raised hover:bg-accent/10 text-text transition-colors"
         >
           Cancel
         </button>

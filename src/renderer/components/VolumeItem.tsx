@@ -16,19 +16,19 @@ export function VolumeItem({ volume, isSelected, onSelect }: VolumeItemProps) {
   return (
     <button
       onClick={() => onSelect(volume.path)}
-      className={`w-full text-left px-3 py-2.5 flex items-start gap-2.5 transition-colors ${
+      className={`w-full text-left px-2.5 py-1.5 flex items-start gap-2 transition-colors ${
         isSelected
-          ? 'bg-blue-600/20 text-blue-400'
-          : 'hover:bg-neutral-700/50 text-neutral-300'
+          ? 'bg-surface-raised text-text'
+          : 'hover:bg-surface-raised/50 text-text'
       }`}
     >
-      <svg className="w-5 h-5 mt-0.5 shrink-0 text-neutral-400" viewBox="0 0 20 20" fill="currentColor">
+      <svg className="w-4 h-4 mt-px shrink-0 text-text-secondary" viewBox="0 0 20 20" fill="currentColor">
         <path d="M2 4.75C2 3.784 2.784 3 3.75 3h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0116.25 17H3.75A1.75 1.75 0 012 15.25V4.75z" />
       </svg>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium truncate">{volume.name}</div>
+        <div className="text-xs font-medium truncate">{volume.name}</div>
         {volume.totalSize && (
-          <div className="text-xs text-neutral-500 mt-0.5">
+          <div className="text-[10px] text-text-secondary">
             {formatSize(volume.freeSpace)} free of {formatSize(volume.totalSize)}
           </div>
         )}

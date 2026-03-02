@@ -22,6 +22,9 @@ export function useSettings() {
       if (settings.customPattern) {
         dispatch({ type: 'SET_CUSTOM_PATTERN', pattern: settings.customPattern });
       }
+      if (settings.theme) {
+        dispatch({ type: 'SET_THEME', theme: settings.theme });
+      }
     });
   }, [dispatch]);
 }

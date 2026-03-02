@@ -29,34 +29,34 @@ export function ImportSummary() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
-      <div className="bg-neutral-800 rounded-xl border border-neutral-700 p-8 max-w-md w-full mx-4 shadow-2xl">
-        <h2 className="text-lg font-medium text-neutral-100 mb-6">Import Complete</h2>
+    <div className="fixed inset-0 z-50 bg-surface-overlay flex items-center justify-center">
+      <div className="bg-surface-alt rounded-lg border border-border p-8 max-w-md w-full mx-4 shadow-2xl">
+        <h2 className="text-lg font-medium text-text mb-6">Import Complete</h2>
 
         <div className="space-y-3 mb-6">
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Imported</span>
+            <span className="text-text-secondary">Imported</span>
             <span className="text-green-400 font-mono font-medium">{importResult.imported}</span>
           </div>
           {importResult.skipped > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-neutral-400">Skipped (duplicates)</span>
+              <span className="text-text-secondary">Skipped (duplicates)</span>
               <span className="text-yellow-400 font-mono">{importResult.skipped}</span>
             </div>
           )}
           {importResult.errors.length > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-neutral-400">Errors</span>
+              <span className="text-text-secondary">Errors</span>
               <span className="text-red-400 font-mono">{importResult.errors.length}</span>
             </div>
           )}
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Total size</span>
-            <span className="text-neutral-200 font-mono">{formatSize(importResult.totalBytes)}</span>
+            <span className="text-text-secondary">Total size</span>
+            <span className="text-text font-mono">{formatSize(importResult.totalBytes)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-400">Duration</span>
-            <span className="text-neutral-200 font-mono">{formatDuration(importResult.durationMs)}</span>
+            <span className="text-text-secondary">Duration</span>
+            <span className="text-text font-mono">{formatDuration(importResult.durationMs)}</span>
           </div>
         </div>
 
@@ -65,8 +65,8 @@ export function ImportSummary() {
           <div className="mb-6 max-h-32 overflow-y-auto">
             <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Errors</h3>
             {importResult.errors.map((err, i) => (
-              <div key={i} className="text-xs text-neutral-500 py-0.5 truncate" title={`${err.file}: ${err.error}`}>
-                <span className="text-neutral-400">{err.file}</span>: {err.error}
+              <div key={i} className="text-xs text-text-secondary py-0.5 truncate" title={`${err.file}: ${err.error}`}>
+                <span className="text-text-secondary">{err.file}</span>: {err.error}
               </div>
             ))}
           </div>
@@ -76,13 +76,13 @@ export function ImportSummary() {
         <div className="flex gap-3">
           <button
             onClick={handleOpenDestination}
-            className="flex-1 py-2 rounded-md text-sm bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors"
+            className="flex-1 py-2 rounded text-sm bg-accent hover:bg-accent-hover text-white font-medium transition-colors"
           >
             Open Destination
           </button>
           <button
             onClick={handleDismiss}
-            className="flex-1 py-2 rounded-md text-sm bg-neutral-700 hover:bg-neutral-600 text-neutral-300 transition-colors"
+            className="flex-1 py-2 rounded text-sm bg-surface-raised hover:bg-accent/10 text-text transition-colors"
           >
             Done
           </button>

@@ -389,10 +389,10 @@ export function ThumbnailGrid() {
           </div>
         ) : viewMode === 'split' ? (
           <div className="h-full flex">
-            <div className="w-[280px] shrink-0 border-r border-border overflow-y-auto px-2 pt-2 pb-16">
+            <div className="w-[200px] shrink-0 border-r border-border overflow-y-auto px-2 pt-1 pb-16">
               <div
                 ref={splitGridRef}
-                className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2"
+                className="flex flex-col gap-1"
               >
                 {sortedFiles.map((file, i) => (
                   <ThumbnailCard
@@ -400,6 +400,8 @@ export function ThumbnailGrid() {
                     file={file}
                     focused={i === focusedIndex}
                     selected={selectedIndices.has(i)}
+                    compact
+                    frameNumber={i + 1}
                     onClick={(e) => handleCardClick(i, e)}
                     onDoubleClick={() => setFocused(i)}
                   />

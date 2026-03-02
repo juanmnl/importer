@@ -19,6 +19,13 @@ export interface MediaFile {
   duplicate?: boolean;
   pick?: 'selected' | 'rejected';
   orientation?: number; // EXIF orientation (1-8), 6/8 = portrait
+  iso?: number;
+  aperture?: number;
+  shutterSpeed?: number;
+  focalLength?: number;
+  cameraMake?: string;
+  cameraModel?: string;
+  lensModel?: string;
 }
 
 export type SaveFormat = 'original' | 'jpeg' | 'tiff' | 'heic';
@@ -71,6 +78,7 @@ export interface AppSettings {
   jpegQuality: number;
   folderPreset: string;      // key from FOLDER_PRESETS or 'custom'
   customPattern: string;     // user-defined pattern when folderPreset is 'custom'
+  theme: 'light' | 'dark';
 }
 
 export const PHOTO_EXTENSIONS = new Set([

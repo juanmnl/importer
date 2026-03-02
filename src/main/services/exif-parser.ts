@@ -9,7 +9,7 @@ import type { MediaFile } from '../../shared/types';
 
 const execFileAsync = promisify(execFile);
 
-export const EXIFR_SUPPORTED = new Set(['.jpg', '.jpeg', '.heic', '.dng', '.cr2', '.cr3', '.arw', '.nef']);
+export const EXIFR_SUPPORTED = new Set(['.jpg', '.jpeg', '.heic', '.dng', '.cr2', '.cr3', '.arw', '.nef', '.raf']);
 const THUMB_WIDTH = 320;
 const PREVIEW_WIDTH = 1920;
 const PREVIEW_QUALITY = 85;
@@ -43,19 +43,49 @@ export function resolvePattern(pattern: string, date: Date, fileName: string, ex
 export async function parseExifDate(
   file: MediaFile,
   folderPattern?: string,
-): Promise<{ dateTaken?: string; destPath?: string; orientation?: number }> {
+): Promise<{
+  dateTaken?: string;
+  destPath?: string;
+  orientation?: number;
+  iso?: number;
+  aperture?: number;
+  shutterSpeed?: number;
+  focalLength?: number;
+  cameraMake?: string;
+  cameraModel?: string;
+  lensModel?: string;
+}> {
   let dateTaken: Date | null = null;
   let orientation: number | undefined;
+  let iso: number | undefined;
+  let aperture: number | undefined;
+  let shutterSpeed: number | undefined;
+  let focalLength: number | undefined;
+  let cameraMake: string | undefined;
+  let cameraModel: string | undefined;
+  let lensModel: string | undefined;
 
   if (file.type === 'photo' && EXIFR_SUPPORTED.has(file.extension)) {
     try {
       const exif = await exifr.parse(file.path, {
-        pick: ['DateTimeOriginal', 'CreateDate', 'ModifyDate', 'Orientation'],
+        pick: [
+          'DateTimeOriginal', 'CreateDate', 'ModifyDate', 'Orientation',
+          'ISO', 'FNumber', 'ExposureTime', 'FocalLength',
+          'Make', 'Model', 'LensModel',
+        ],
         reviveValues: true,
       });
       if (exif) {
         dateTaken = exif.DateTimeOriginal || exif.CreateDate || exif.ModifyDate || null;
         if (typeof exif.Orientation === 'number') orientation = exif.Orientation;
+        if (typeof exif.ISO === 'number') iso = exif.ISO;
+        if (typeof exif.FNumber === 'number') aperture = exif.FNumber;
+        if (typeof exif.ExposureTime === 'number') shutterSpeed = exif.ExposureTime;
+        if (typeof exif.FocalLength === 'number') focalLength = exif.FocalLength;
+        if (typeof exif.Make === 'string') cameraMake = exif.Make;
+        if (typeof exif.Model === 'string') cameraModel = exif.Model;
+        if (typeof exif.LensModel === 'string') lensModel = exif.LensModel;
+        if (iso || aperture) console.log('[exif]', file.name, { iso, aperture, shutterSpeed, focalLength, cameraModel });
       }
     } catch {
       // EXIF parse failed
@@ -77,6 +107,13 @@ export async function parseExifDate(
     dateTaken: dateTaken.toISOString(),
     destPath,
     orientation,
+    iso,
+    aperture,
+    shutterSpeed,
+    focalLength,
+    cameraMake,
+    cameraModel,
+    lensModel,
   };
 }
 
