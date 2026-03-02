@@ -60,7 +60,7 @@ export function SourcePanel() {
       <div className="px-2.5 py-1.5">
         <button
           onClick={handleChooseFolder}
-          className="text-xs text-text-secondary hover:text-text transition-colors"
+          className="w-full px-2 py-1 text-xs bg-surface-raised hover:bg-border rounded text-text transition-colors text-left cursor-pointer"
         >
           Choose Folder...
         </button>
