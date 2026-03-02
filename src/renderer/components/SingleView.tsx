@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { MediaFile } from '../../shared/types';
 
 interface SingleViewProps {
@@ -7,27 +7,48 @@ interface SingleViewProps {
   total: number;
 }
 
-function isPortrait(orientation?: number): boolean {
-  return orientation !== undefined && orientation >= 5 && orientation <= 8;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 5;
+const ZOOM_STEP = 0.008;
+
+function fmtAperture(v: number): string {
+  return v % 1 === 0 ? `f/${v}` : `f/${v.toFixed(1)}`;
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1e6) return `${(bytes / 1e3).toFixed(0)} KB`;
-  return `${(bytes / 1e6).toFixed(1)} MB`;
+function fmtShutter(v: number): string {
+  return v < 1 ? `1/${Math.round(1 / v)}s` : `${v}s`;
 }
 
-function formatDate(isoDate?: string): string {
-  if (!isoDate) return '';
-  const d = new Date(isoDate);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function fmtFocal(v: number): string {
+  return `${Math.round(v)}mm`;
+}
+
+function buildExposure(file: MediaFile): string | null {
+  const parts: string[] = [];
+  if (file.aperture != null) parts.push(fmtAperture(file.aperture));
+  if (file.shutterSpeed != null) parts.push(fmtShutter(file.shutterSpeed));
+  if (file.iso != null) parts.push(`ISO ${file.iso}`);
+  if (file.focalLength != null) parts.push(fmtFocal(file.focalLength));
+  return parts.length > 0 ? parts.join(' \u00b7 ') : null;
 }
 
 export function SingleView({ file, index, total }: SingleViewProps) {
-  const portrait = isPortrait(file.orientation);
   const [preview, setPreview] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const isPicked = file.pick === 'selected';
   const isRejected = file.pick === 'rejected';
+
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Reset zoom/pan when file changes
+  useEffect(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, [file.path]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,79 +67,137 @@ export function SingleView({ file, index, total }: SingleViewProps) {
     return () => { cancelled = true; };
   }, [file.path]);
 
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom((z) => {
+      // Exponential zoom: constant scroll feels uniform at any zoom level
+      const factor = Math.exp(-e.deltaY * ZOOM_STEP);
+      const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor));
+      if (next < 1.02) { setPan({ x: 0, y: 0 }); return 1; }
+      return next;
+    });
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (zoom <= 1) return;
+    isDragging.current = true;
+    lastMouse.current = { x: e.clientX, y: e.clientY };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [zoom]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - lastMouse.current.x;
+    const dy = e.clientY - lastMouse.current.y;
+    lastMouse.current = { x: e.clientX, y: e.clientY };
+    setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
+  const handleDoubleClick = useCallback(() => {
+    if (zoom > 1) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+    } else {
+      setZoom(2);
+    }
+  }, [zoom]);
+
   const imageSrc = preview || file.thumbnail;
+  const isZoomed = zoom > 1;
+  const exposure = buildExposure(file);
+  const cameraName = file.cameraModel || null;
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Image area */}
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-black p-6 relative">
-        <div className={`relative max-h-full max-w-full ${isRejected ? 'opacity-40' : ''}`}>
-          {imageSrc ? (
-            <img
-              src={imageSrc}
-              alt={file.name}
-              className={`max-h-[calc(100vh-10rem)] max-w-full object-contain ${portrait ? '-rotate-90' : ''}`}
-              style={{ imageOrientation: 'none' }}
-            />
-          ) : (
-            <div className="text-neutral-600 text-sm">No preview</div>
-          )}
+    <div
+      ref={containerRef}
+      className="h-full flex items-center justify-center bg-neutral-100 dark:bg-black relative overflow-hidden"
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onDoubleClick={handleDoubleClick}
+      style={{ cursor: isZoomed ? (isDragging.current ? 'grabbing' : 'grab') : 'default' }}
+    >
+      <div
+        className={`relative max-h-full max-w-full ${isRejected ? 'opacity-40' : ''}`}
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: 'center center',
+          transition: isDragging.current ? 'none' : 'transform 0.15s ease-out',
+        }}
+      >
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt={file.name}
+            className="max-h-[calc(100vh-6rem)] max-w-full object-contain"
+            draggable={false}
+          />
+        ) : (
+          <div className="text-text-muted text-sm">No preview</div>
+        )}
 
-          {/* Yellow corner brackets for picked */}
-          {isPicked && imageSrc && (
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-2 left-2 w-8 h-8 border-t-[4px] border-l-[4px] border-yellow-400" />
-              <div className="absolute top-2 right-2 w-8 h-8 border-t-[4px] border-r-[4px] border-yellow-400" />
-              <div className="absolute bottom-2 left-2 w-8 h-8 border-b-[4px] border-l-[4px] border-yellow-400" />
-              <div className="absolute bottom-2 right-2 w-8 h-8 border-b-[4px] border-r-[4px] border-yellow-400" />
-            </div>
-          )}
+        {/* Viewfinder corner ticks */}
+        {imageSrc && (
+          <div className="absolute inset-0 pointer-events-none z-[5]">
+            <div className="absolute top-1.5 left-1.5 w-3 h-3 border-t border-l border-white/25" />
+            <div className="absolute top-1.5 right-1.5 w-3 h-3 border-t border-r border-white/25" />
+            <div className="absolute bottom-1.5 left-1.5 w-3 h-3 border-b border-l border-white/25" />
+            <div className="absolute bottom-1.5 right-1.5 w-3 h-3 border-b border-r border-white/25" />
+          </div>
+        )}
 
-          {/* Red X for rejected */}
-          {isRejected && imageSrc && (
-            <div className="absolute inset-0 pointer-events-none">
-              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <line x1="15" y1="15" x2="85" y2="85" stroke="#dc2626" strokeWidth="4" strokeLinecap="round" />
-                <line x1="85" y1="15" x2="15" y2="85" stroke="#dc2626" strokeWidth="4" strokeLinecap="round" />
-              </svg>
-            </div>
-          )}
-        </div>
+        {isPicked && imageSrc && (
+          <div className="absolute inset-0 pointer-events-none z-10">
+            <div className="absolute top-2 left-2 w-5 h-5 border-t-[2px] border-l-[2px] border-yellow-400/80" />
+            <div className="absolute top-2 right-2 w-5 h-5 border-t-[2px] border-r-[2px] border-yellow-400/80" />
+            <div className="absolute bottom-2 left-2 w-5 h-5 border-b-[2px] border-l-[2px] border-yellow-400/80" />
+            <div className="absolute bottom-2 right-2 w-5 h-5 border-b-[2px] border-r-[2px] border-yellow-400/80" />
+          </div>
+        )}
 
-        {/* Loading indicator */}
-        {loading && file.thumbnail && (
-          <div className="absolute top-4 right-4 flex items-center gap-2">
-            <div className="w-3 h-3 border-2 border-neutral-600 border-t-blue-500 rounded-full animate-spin" />
-            <span className="text-[11px] text-neutral-500">loading full preview</span>
+        {isRejected && imageSrc && (
+          <div className="absolute top-2 right-2 pointer-events-none z-10">
+            <svg className="w-6 h-6" viewBox="0 0 16 16">
+              <line x1="3" y1="3" x2="13" y2="13" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
+              <line x1="13" y1="3" x2="3" y2="13" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
+            </svg>
           </div>
         )}
       </div>
 
-      {/* Info bar */}
-      <div className="shrink-0 px-4 py-2.5 bg-neutral-900/90 border-t border-neutral-800 flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-sm text-neutral-200 font-mono truncate">{file.name}</span>
-          <span className="text-xs text-neutral-500 shrink-0">{formatFileSize(file.size)}</span>
-          {file.dateTaken && (
-            <span className="text-xs text-neutral-600 shrink-0">{formatDate(file.dateTaken)}</span>
+      {loading && file.thumbnail && (
+        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+          <div className="w-3 h-3 border-[1.5px] border-text-muted border-t-text rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* Metadata HUD — hidden when zoomed */}
+      {!isZoomed && (exposure || cameraName) && (
+        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between pointer-events-none z-[5]">
+          {exposure && (
+            <span className="text-[9px] font-mono text-text-muted bg-black/30 dark:bg-black/50 px-1.5 py-0.5 rounded">
+              {exposure}
+            </span>
           )}
-          {file.extension && (
-            <span className="text-[10px] text-neutral-600 uppercase font-mono shrink-0">{file.extension.replace('.', '')}</span>
-          )}
-          {isPicked && (
-            <span className="text-[11px] text-yellow-400 font-mono font-medium shrink-0">PICK</span>
-          )}
-          {isRejected && (
-            <span className="text-[11px] text-red-500 font-mono font-medium shrink-0">REJ</span>
-          )}
-          {file.duplicate && !file.pick && (
-            <span className="text-[11px] text-neutral-500 font-mono shrink-0">IMPORTED</span>
+          {cameraName && (
+            <span className="text-[9px] font-mono text-text-muted bg-black/30 dark:bg-black/50 px-1.5 py-0.5 rounded ml-auto">
+              {cameraName}
+            </span>
           )}
         </div>
-        <div className="text-xs text-neutral-500 font-mono shrink-0 ml-4">
-          {index + 1} / {total}
+      )}
+
+      {/* Zoom indicator */}
+      {isZoomed && (
+        <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] font-mono px-1.5 py-0.5 rounded z-20">
+          {Math.round(zoom * 100)}%
         </div>
-      </div>
+      )}
     </div>
   );
 }

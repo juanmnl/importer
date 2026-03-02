@@ -4,6 +4,8 @@ interface ThumbnailCardProps {
   file: MediaFile;
   focused?: boolean;
   selected?: boolean;
+  compact?: boolean;
+  frameNumber?: number;
   onClick?: (e: React.MouseEvent) => void;
   onDoubleClick?: () => void;
 }
@@ -13,39 +15,43 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1e6).toFixed(1)} MB`;
 }
 
+function formatExposure(file: MediaFile): string | null {
+  const parts: string[] = [];
+  if (file.aperture != null) parts.push(file.aperture % 1 === 0 ? `f/${file.aperture}` : `f/${file.aperture.toFixed(1)}`);
+  if (file.shutterSpeed != null) parts.push(file.shutterSpeed < 1 ? `1/${Math.round(1 / file.shutterSpeed)}` : `${file.shutterSpeed}s`);
+  if (file.iso != null) parts.push(String(file.iso));
+  return parts.length > 0 ? parts.join(' ') : null;
+}
+
 function isPortrait(orientation?: number): boolean {
   return orientation !== undefined && orientation >= 5 && orientation <= 8;
 }
 
-// Yellow grease-pencil corner brackets (Capa-style pick marks)
+// Subtle corner brackets (thin pick marks)
 function CornerBrackets() {
   return (
     <div className="absolute inset-0 pointer-events-none z-10">
-      {/* Top-left */}
-      <div className="absolute top-1 left-1 w-5 h-5 border-t-[3px] border-l-[3px] border-yellow-400 rounded-tl-sm" />
-      {/* Top-right */}
-      <div className="absolute top-1 right-1 w-5 h-5 border-t-[3px] border-r-[3px] border-yellow-400 rounded-tr-sm" />
-      {/* Bottom-left */}
-      <div className="absolute bottom-1 left-1 w-5 h-5 border-b-[3px] border-l-[3px] border-yellow-400 rounded-bl-sm" />
-      {/* Bottom-right */}
-      <div className="absolute bottom-1 right-1 w-5 h-5 border-b-[3px] border-r-[3px] border-yellow-400 rounded-br-sm" />
+      <div className="absolute top-1 left-1 w-3 h-3 border-t-[2px] border-l-[2px] border-yellow-400/80 rounded-tl-sm" />
+      <div className="absolute top-1 right-1 w-3 h-3 border-t-[2px] border-r-[2px] border-yellow-400/80 rounded-tr-sm" />
+      <div className="absolute bottom-1 left-1 w-3 h-3 border-b-[2px] border-l-[2px] border-yellow-400/80 rounded-bl-sm" />
+      <div className="absolute bottom-1 right-1 w-3 h-3 border-b-[2px] border-r-[2px] border-yellow-400/80 rounded-br-sm" />
     </div>
   );
 }
 
-// Red X drawn over the frame (Capa-style rejection)
+// Subtle reject mark (small X in corner)
 function RejectX() {
   return (
-    <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
-      <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <line x1="15" y1="15" x2="85" y2="85" stroke="#dc2626" strokeWidth="6" strokeLinecap="round" />
-        <line x1="85" y1="15" x2="15" y2="85" stroke="#dc2626" strokeWidth="6" strokeLinecap="round" />
+    <div className="absolute top-1 right-1 pointer-events-none z-10">
+      <svg className="w-4 h-4" viewBox="0 0 16 16">
+        <line x1="3" y1="3" x2="13" y2="13" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
+        <line x1="13" y1="3" x2="3" y2="13" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
       </svg>
     </div>
   );
 }
 
-export function ThumbnailCard({ file, focused = false, selected = false, onClick, onDoubleClick }: ThumbnailCardProps) {
+export function ThumbnailCard({ file, focused = false, selected = false, compact = false, frameNumber, onClick, onDoubleClick }: ThumbnailCardProps) {
   const isVideo = file.type === 'video';
   const portrait = isPortrait(file.orientation);
   const isPicked = file.pick === 'selected';
@@ -102,14 +108,25 @@ export function ThumbnailCard({ file, focused = false, selected = false, onClick
               IMPORTED
             </div>
           )}
+
+          {/* Frame number (compact/filmstrip mode) */}
+          {compact && frameNumber !== undefined && (
+            <div className="absolute bottom-1 left-1 text-[9px] text-neutral-500 dark:text-neutral-400 font-mono z-20">
+              {String(frameNumber).padStart(3, '0')}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Frame number / file info — film strip style */}
-      <div className="mt-1 flex items-center justify-between px-0.5">
-        <span className="text-[10px] text-text-secondary font-mono truncate">{file.name}</span>
-        <span className="text-[10px] text-text-muted font-mono shrink-0 ml-1">{formatFileSize(file.size)}</span>
-      </div>
+      {/* File info — hidden in compact/filmstrip mode */}
+      {!compact && (
+        <div className="mt-1 flex items-center justify-between px-0.5">
+          <span className="text-[10px] text-text-secondary font-mono truncate">{file.name}</span>
+          <span className="text-[9px] text-text-muted font-mono shrink-0 ml-1">
+            {formatExposure(file) || formatFileSize(file.size)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
