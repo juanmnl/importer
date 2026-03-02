@@ -39,13 +39,13 @@ function CornerBrackets() {
   );
 }
 
-// Subtle reject mark (small X in corner)
+// Thin full-frame reject cross
 function RejectX() {
   return (
-    <div className="absolute top-1 right-1 pointer-events-none z-10">
-      <svg className="w-4 h-4" viewBox="0 0 16 16">
-        <line x1="3" y1="3" x2="13" y2="13" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
-        <line x1="13" y1="3" x2="3" y2="13" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
+    <div className="absolute inset-0 pointer-events-none z-10">
+      <svg className="w-full h-full" viewBox="0 0 100 75" preserveAspectRatio="none">
+        <line x1="10" y1="8" x2="90" y2="67" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
+        <line x1="90" y1="8" x2="10" y2="67" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
       </svg>
     </div>
   );

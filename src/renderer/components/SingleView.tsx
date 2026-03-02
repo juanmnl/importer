@@ -161,10 +161,10 @@ export function SingleView({ file, index, total }: SingleViewProps) {
         )}
 
         {isRejected && imageSrc && (
-          <div className="absolute top-2 right-2 pointer-events-none z-10">
-            <svg className="w-6 h-6" viewBox="0 0 16 16">
-              <line x1="3" y1="3" x2="13" y2="13" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
-              <line x1="13" y1="3" x2="3" y2="13" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.8" />
+          <div className="absolute inset-0 pointer-events-none z-10">
+            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <line x1="10" y1="10" x2="90" y2="90" stroke="#dc2626" strokeWidth="1" strokeLinecap="round" strokeOpacity="0.7" />
+              <line x1="90" y1="10" x2="10" y2="90" stroke="#dc2626" strokeWidth="1" strokeLinecap="round" strokeOpacity="0.7" />
             </svg>
           </div>
         )}
