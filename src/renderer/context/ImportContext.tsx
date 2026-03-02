@@ -76,7 +76,7 @@ const initialState: State = {
   showRightPanel: true,
 };
 
-function reducer(state: State, action: Action): State {
+export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'SET_VOLUMES':
       return { ...state, volumes: action.volumes };

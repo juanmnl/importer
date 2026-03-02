@@ -16,14 +16,28 @@ export function useImport() {
     if (!selectedSource || !destination) return;
 
     dispatch({ type: 'IMPORT_START' });
-    const result = await window.electronAPI.startImport({
-      sourcePath: selectedSource,
-      destRoot: destination,
-      skipDuplicates,
-      saveFormat,
-      jpegQuality,
-    });
-    dispatch({ type: 'IMPORT_COMPLETE', result });
+    try {
+      const result = await window.electronAPI.startImport({
+        sourcePath: selectedSource,
+        destRoot: destination,
+        skipDuplicates,
+        saveFormat,
+        jpegQuality,
+      });
+      dispatch({ type: 'IMPORT_COMPLETE', result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Import failed unexpectedly';
+      dispatch({
+        type: 'IMPORT_COMPLETE',
+        result: {
+          imported: 0,
+          skipped: 0,
+          errors: [{ file: 'system', error: message }],
+          totalBytes: 0,
+          durationMs: 0,
+        },
+      });
+    }
   }, [selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, dispatch]);
 
   const cancelImport = useCallback(async () => {

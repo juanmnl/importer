@@ -16,7 +16,7 @@ const FORMAT_EXT: Record<Exclude<SaveFormat, 'original'>, string> = {
   heic: '.heic',
 };
 
-function convertedDestPath(destPath: string, format: SaveFormat): string {
+export function convertedDestPath(destPath: string, format: SaveFormat): string {
   if (format === 'original') return destPath;
   const ext = FORMAT_EXT[format];
   const parsed = path.parse(destPath);

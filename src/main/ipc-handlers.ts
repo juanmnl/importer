@@ -2,7 +2,7 @@ import { ipcMain, dialog, shell, app, BrowserWindow } from 'electron';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { IPC } from '../shared/types';
-import type { ImportConfig, AppSettings, MediaFile } from '../shared/types';
+import type { ImportConfig, ImportResult, AppSettings, MediaFile } from '../shared/types';
 import { listVolumes, startWatching, stopWatching } from './services/volume-watcher';
 import { scanFiles, cancelScan } from './services/file-scanner';
 import { importFiles, cancelImport } from './services/import-engine';
@@ -20,7 +20,7 @@ async function loadSettings(): Promise<AppSettings> {
     const data = await readFile(getSettingsPath(), 'utf-8');
     return JSON.parse(data);
   } catch {
-    return { lastDestination: '', skipDuplicates: true, saveFormat: 'original', jpegQuality: 90, folderPreset: 'date-flat', customPattern: '{YYYY}-{MM}-{DD}/{filename}' };
+    return { lastDestination: '', skipDuplicates: true, saveFormat: 'original', jpegQuality: 90, folderPreset: 'date-flat', customPattern: '{YYYY}-{MM}-{DD}/{filename}', theme: 'dark' };
   }
 }
 
@@ -101,11 +101,22 @@ export function registerIpcHandlers(): void {
 
   // Import
   ipcMain.handle(IPC.IMPORT_START, async (_event, config: ImportConfig) => {
-    const filesToImport = scannedFiles.filter((f) => f.destPath);
-    const result = await importFiles(filesToImport, config, (progress) => {
-      sendToRenderer(IPC.IMPORT_PROGRESS, progress);
-    });
-    return result;
+    try {
+      const filesToImport = scannedFiles.filter((f) => f.destPath);
+      const result = await importFiles(filesToImport, config, (progress) => {
+        sendToRenderer(IPC.IMPORT_PROGRESS, progress);
+      });
+      return result;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown import error';
+      return {
+        imported: 0,
+        skipped: 0,
+        errors: [{ file: 'system', error: message }],
+        totalBytes: 0,
+        durationMs: 0,
+      } satisfies ImportResult;
+    }
   });
 
   ipcMain.handle(IPC.IMPORT_CANCEL, async () => {
