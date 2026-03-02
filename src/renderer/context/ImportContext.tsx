@@ -10,6 +10,7 @@ interface State {
   selectedSource: string | null;
   files: MediaFile[];
   phase: AppPhase;
+  scanError: string | null;
   destination: string | null;
   skipDuplicates: boolean;
   saveFormat: SaveFormat;
@@ -31,6 +32,7 @@ export type Action =
   | { type: 'SCAN_START' }
   | { type: 'SCAN_BATCH'; files: MediaFile[] }
   | { type: 'SCAN_COMPLETE' }
+  | { type: 'SCAN_ERROR'; message: string }
   | { type: 'SET_DESTINATION'; path: string }
   | { type: 'SET_SKIP_DUPLICATES'; value: boolean }
   | { type: 'SET_SAVE_FORMAT'; format: SaveFormat }
@@ -61,6 +63,7 @@ const initialState: State = {
   selectedSource: null,
   files: [],
   phase: 'idle',
+  scanError: null,
   destination: null,
   skipDuplicates: true,
   saveFormat: 'original' as SaveFormat,
@@ -83,11 +86,13 @@ export function reducer(state: State, action: Action): State {
     case 'SELECT_SOURCE':
       return { ...state, selectedSource: action.path, files: [], phase: 'idle' };
     case 'SCAN_START':
-      return { ...state, files: [], phase: 'scanning', focusedIndex: -1 };
+      return { ...state, files: [], phase: 'scanning', scanError: null, focusedIndex: -1 };
     case 'SCAN_BATCH':
       return { ...state, files: [...state.files, ...action.files] };
     case 'SCAN_COMPLETE':
       return { ...state, phase: state.files.length > 0 ? 'ready' : 'idle' };
+    case 'SCAN_ERROR':
+      return { ...state, phase: 'idle', scanError: action.message };
     case 'SET_DESTINATION':
       return { ...state, destination: action.path };
     case 'SET_SKIP_DUPLICATES':

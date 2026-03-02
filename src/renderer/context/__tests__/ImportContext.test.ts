@@ -9,6 +9,7 @@ function makeState(overrides: Record<string, unknown> = {}) {
     selectedSource: null,
     files: [] as MediaFile[],
     phase: 'idle' as AppPhase,
+    scanError: null as string | null,
     destination: null,
     skipDuplicates: true,
     saveFormat: 'original' as SaveFormat,

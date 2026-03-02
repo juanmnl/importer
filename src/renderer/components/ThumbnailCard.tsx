@@ -1,4 +1,5 @@
 import type { MediaFile } from '../../shared/types';
+import { formatFileSize, formatExposure, isPortrait } from '../utils/formatters';
 
 interface ThumbnailCardProps {
   file: MediaFile;
@@ -8,23 +9,6 @@ interface ThumbnailCardProps {
   frameNumber?: number;
   onClick?: (e: React.MouseEvent) => void;
   onDoubleClick?: () => void;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1e6) return `${(bytes / 1e3).toFixed(0)} KB`;
-  return `${(bytes / 1e6).toFixed(1)} MB`;
-}
-
-function formatExposure(file: MediaFile): string | null {
-  const parts: string[] = [];
-  if (file.aperture != null) parts.push(file.aperture % 1 === 0 ? `f/${file.aperture}` : `f/${file.aperture.toFixed(1)}`);
-  if (file.shutterSpeed != null) parts.push(file.shutterSpeed < 1 ? `1/${Math.round(1 / file.shutterSpeed)}` : `${file.shutterSpeed}s`);
-  if (file.iso != null) parts.push(String(file.iso));
-  return parts.length > 0 ? parts.join(' ') : null;
-}
-
-function isPortrait(orientation?: number): boolean {
-  return orientation !== undefined && orientation >= 5 && orientation <= 8;
 }
 
 // Subtle corner brackets (thin pick marks)

@@ -1,12 +1,7 @@
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 import { useFileScanner } from '../hooks/useFileScanner';
 import { VolumeItem } from './VolumeItem';
-
-function formatSize(bytes: number): string {
-  const gb = bytes / 1e9;
-  if (gb >= 1) return `${gb.toFixed(2)} GB`;
-  return `${(bytes / 1e6).toFixed(0)} MB`;
-}
+import { formatSize } from '../utils/formatters';
 
 export function SourcePanel() {
   const { volumes, selectedSource, files, phase } = useAppState();
@@ -72,6 +67,14 @@ export function SourcePanel() {
           <div className="text-[10px] text-text-muted truncate" title={selectedSource}>
             {selectedSource}
           </div>
+          {phase === 'ready' && (
+            <button
+              onClick={() => startScan()}
+              className="mt-1 text-[10px] text-text-secondary hover:text-text transition-colors"
+            >
+              Rescan
+            </button>
+          )}
         </div>
       )}
 

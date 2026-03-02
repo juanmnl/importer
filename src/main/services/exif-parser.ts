@@ -6,6 +6,7 @@ import { app } from 'electron';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { MediaFile } from '../../shared/types';
+import { resolvePattern } from '../../shared/types';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,21 +23,6 @@ async function getThumbDir(): Promise<string> {
     await mkdir(thumbDir, { recursive: true });
   }
   return thumbDir;
-}
-
-// Resolve a folder pattern like "{YYYY}-{MM}-{DD}/{filename}" with actual values
-export function resolvePattern(pattern: string, date: Date, fileName: string, ext: string): string {
-  const y = date.getFullYear().toString();
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const d = date.getDate().toString().padStart(2, '0');
-  const baseName = path.basename(fileName, ext);
-  return pattern
-    .replace(/\{YYYY\}/g, y)
-    .replace(/\{MM\}/g, m)
-    .replace(/\{DD\}/g, d)
-    .replace(/\{filename\}/g, fileName)
-    .replace(/\{name\}/g, baseName)
-    .replace(/\{ext\}/g, ext.replace('.', ''));
 }
 
 // Fast: only extract date, no thumbnail

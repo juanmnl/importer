@@ -1,15 +1,20 @@
+import { useEffect } from 'react';
 import { useAppState } from '../context/ImportContext';
 import { useImport } from '../hooks/useImport';
-
-function formatSize(bytes: number): string {
-  const gb = bytes / 1e9;
-  if (gb >= 1) return `${gb.toFixed(2)} GB`;
-  return `${(bytes / 1e6).toFixed(0)} MB`;
-}
+import { formatSize } from '../utils/formatters';
 
 export function ImportProgress() {
   const { phase, importProgress } = useAppState();
   const { cancelImport } = useImport();
+
+  useEffect(() => {
+    if (phase !== 'importing' || !importProgress) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cancelImport();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [phase, importProgress, cancelImport]);
 
   if (phase !== 'importing' || !importProgress) return null;
 

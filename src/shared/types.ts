@@ -94,6 +94,20 @@ export const ALL_MEDIA_EXTENSIONS = new Set([
   ...VIDEO_EXTENSIONS,
 ]);
 
+export function resolvePattern(pattern: string, date: Date, fileName: string, ext: string): string {
+  const y = date.getFullYear().toString();
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  const d = date.getDate().toString().padStart(2, '0');
+  const baseName = fileName.replace(new RegExp(`\\${ext}$`, 'i'), '');
+  return pattern
+    .replace(/\{YYYY\}/g, y)
+    .replace(/\{MM\}/g, m)
+    .replace(/\{DD\}/g, d)
+    .replace(/\{filename\}/g, fileName)
+    .replace(/\{name\}/g, baseName)
+    .replace(/\{ext\}/g, ext.replace('.', ''));
+}
+
 export const IPC = {
   // Volumes
   VOLUMES_LIST: 'volumes:list',

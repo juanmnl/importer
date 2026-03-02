@@ -46,11 +46,13 @@ export function useFileScanner() {
       ? customPattern
       : FOLDER_PRESETS[folderPreset]?.pattern;
 
+    await window.electronAPI.cancelScan();
     dispatch({ type: 'SCAN_START' });
     try {
       await window.electronAPI.scanFiles(target, pattern);
     } catch (err) {
-      console.error('[renderer] scanFiles error:', err);
+      const message = err instanceof Error ? err.message : 'Scan failed';
+      dispatch({ type: 'SCAN_ERROR', message });
     }
   }, [selectedSource, folderPreset, customPattern, dispatch]);
 

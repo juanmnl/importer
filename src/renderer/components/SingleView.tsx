@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { MediaFile } from '../../shared/types';
+import { buildExposure } from '../utils/formatters';
 
 interface SingleViewProps {
   file: MediaFile;
@@ -10,27 +11,6 @@ interface SingleViewProps {
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 0.008;
-
-function fmtAperture(v: number): string {
-  return v % 1 === 0 ? `f/${v}` : `f/${v.toFixed(1)}`;
-}
-
-function fmtShutter(v: number): string {
-  return v < 1 ? `1/${Math.round(1 / v)}s` : `${v}s`;
-}
-
-function fmtFocal(v: number): string {
-  return `${Math.round(v)}mm`;
-}
-
-function buildExposure(file: MediaFile): string | null {
-  const parts: string[] = [];
-  if (file.aperture != null) parts.push(fmtAperture(file.aperture));
-  if (file.shutterSpeed != null) parts.push(fmtShutter(file.shutterSpeed));
-  if (file.iso != null) parts.push(`ISO ${file.iso}`);
-  if (file.focalLength != null) parts.push(fmtFocal(file.focalLength));
-  return parts.length > 0 ? parts.join(' \u00b7 ') : null;
-}
 
 export function SingleView({ file, index, total }: SingleViewProps) {
   const [preview, setPreview] = useState<string | undefined>(undefined);

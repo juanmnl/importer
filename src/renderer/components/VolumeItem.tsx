@@ -1,15 +1,10 @@
 import type { Volume } from '../../shared/types';
+import { formatSize } from '../utils/formatters';
 
 interface VolumeItemProps {
   volume: Volume;
   isSelected: boolean;
   onSelect: (path: string) => void;
-}
-
-function formatSize(bytes?: number): string {
-  if (!bytes) return '';
-  const gb = bytes / 1e9;
-  return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(bytes / 1e6).toFixed(0)} MB`;
 }
 
 export function VolumeItem({ volume, isSelected, onSelect }: VolumeItemProps) {
@@ -29,7 +24,7 @@ export function VolumeItem({ volume, isSelected, onSelect }: VolumeItemProps) {
         <div className="text-xs font-medium truncate">{volume.name}</div>
         {volume.totalSize && (
           <div className="text-[10px] text-text-secondary">
-            {formatSize(volume.freeSpace)} free of {formatSize(volume.totalSize)}
+            {volume.freeSpace ? formatSize(volume.freeSpace) : '?'} free of {formatSize(volume.totalSize)}
           </div>
         )}
       </div>

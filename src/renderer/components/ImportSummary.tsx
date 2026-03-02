@@ -1,22 +1,19 @@
+import { useEffect } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
-
-function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remaining = seconds % 60;
-  return `${minutes}m ${remaining}s`;
-}
-
-function formatSize(bytes: number): string {
-  const gb = bytes / 1e9;
-  if (gb >= 1) return `${gb.toFixed(2)} GB`;
-  return `${(bytes / 1e6).toFixed(0)} MB`;
-}
+import { formatDuration, formatSize } from '../utils/formatters';
 
 export function ImportSummary() {
   const { phase, importResult, destination } = useAppState();
   const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (phase !== 'complete' || !importResult) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dispatch({ type: 'DISMISS_SUMMARY' });
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [phase, importResult, dispatch]);
 
   if (phase !== 'complete' || !importResult) return null;
 

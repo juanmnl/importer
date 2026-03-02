@@ -32,7 +32,8 @@ vi.mock('electron', () => ({
 import exifr from 'exifr';
 import { stat, readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
-import { resolvePattern, parseExifDate, extractEmbeddedThumbnail, generatePreview, generateThumbnail } from '../exif-parser';
+import { resolvePattern } from '../../../shared/types';
+import { parseExifDate, extractEmbeddedThumbnail, generatePreview, generateThumbnail } from '../exif-parser';
 
 const mockExifrParse = vi.mocked(exifr.parse);
 const mockExifrThumbnail = vi.mocked(exifr.thumbnail);

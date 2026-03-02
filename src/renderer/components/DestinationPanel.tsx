@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 import { useImport } from '../hooks/useImport';
 import type { SaveFormat } from '../../shared/types';
-import { FOLDER_PRESETS } from '../../shared/types';
+import { FOLDER_PRESETS, resolvePattern } from '../../shared/types';
+import { formatSize } from '../utils/formatters';
 
 const FORMAT_EXT: Record<string, string> = {
   jpeg: '.jpg',
@@ -10,32 +11,12 @@ const FORMAT_EXT: Record<string, string> = {
   heic: '.heic',
 };
 
-function resolvePattern(pattern: string, date: Date, fileName: string, ext: string): string {
-  const y = date.getFullYear().toString();
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const d = date.getDate().toString().padStart(2, '0');
-  const baseName = fileName.replace(new RegExp(`\\${ext}$`, 'i'), '');
-  return pattern
-    .replace(/\{YYYY\}/g, y)
-    .replace(/\{MM\}/g, m)
-    .replace(/\{DD\}/g, d)
-    .replace(/\{filename\}/g, fileName)
-    .replace(/\{name\}/g, baseName)
-    .replace(/\{ext\}/g, ext.replace('.', ''));
-}
-
 function applyFormat(destPath: string, format: SaveFormat): string {
   if (format === 'original') return destPath;
   const ext = FORMAT_EXT[format];
   const lastDot = destPath.lastIndexOf('.');
   if (lastDot < 0) return destPath + ext;
   return destPath.slice(0, lastDot) + ext;
-}
-
-function formatSize(bytes: number): string {
-  const gb = bytes / 1e9;
-  if (gb >= 1) return `${gb.toFixed(2)} GB`;
-  return `${(bytes / 1e6).toFixed(0)} MB`;
 }
 
 export function DestinationPanel() {

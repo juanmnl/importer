@@ -1,11 +1,13 @@
 import { useMemo, useEffect, useCallback, useRef, useState } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
+import { useFileScanner } from '../hooks/useFileScanner';
 import { ThumbnailCard } from './ThumbnailCard';
 import { SingleView } from './SingleView';
 import { EmptyState } from './EmptyState';
 
 export function ThumbnailGrid() {
-  const { files, phase, selectedSource, focusedIndex, viewMode, showLeftPanel, showRightPanel } = useAppState();
+  const { files, phase, selectedSource, scanError, focusedIndex, viewMode, showLeftPanel, showRightPanel } = useAppState();
+  const { startScan } = useFileScanner();
   const dispatch = useAppDispatch();
   const gridRef = useRef<HTMLDivElement>(null);
   const splitGridRef = useRef<HTMLDivElement>(null);
@@ -193,8 +195,21 @@ export function ThumbnailGrid() {
 
   if (files.length === 0 && phase !== 'scanning') {
     return (
-      <div className="h-full flex items-center justify-center">
-        <p className="text-sm text-text-secondary">No supported files found</p>
+      <div className="h-full flex flex-col items-center justify-center gap-2">
+        {scanError ? (
+          <p className="text-sm text-red-400">{scanError}</p>
+        ) : (
+          <>
+            <p className="text-sm text-text-secondary">No supported files found</p>
+            <p className="text-xs text-text-muted">Supports JPG, RAW, HEIC, MOV, MP4</p>
+          </>
+        )}
+        <button
+          onClick={() => startScan()}
+          className="mt-2 px-3 py-1 text-xs bg-surface-raised hover:bg-border rounded text-text-secondary transition-colors"
+        >
+          Rescan
+        </button>
       </div>
     );
   }
