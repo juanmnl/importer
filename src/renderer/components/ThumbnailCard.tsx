@@ -67,7 +67,7 @@ export function ThumbnailCard({ file, focused = false, selected = false, compact
     >
       {/* Frame */}
       <div className={`relative bg-surface overflow-hidden ${
-        selected ? 'ring-2 ring-blue-500' : focused && !isPicked ? 'ring-2 ring-text-secondary/60' : ''
+        selected ? 'ring-2 ring-blue-500' : focused ? 'outline-2 outline-offset-2 outline-blue-500' : ''
       }`}>
         {/* Image */}
         <div className="aspect-[4/3] relative flex items-center justify-center">
