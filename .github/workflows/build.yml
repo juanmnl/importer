@@ -1,0 +1,62 @@
+name: Build & Release Alpha
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run make
+
+      - name: Delete existing alpha release
+        run: gh release delete v1.0.0-alpha --cleanup-tag --yes || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create alpha release
+        run: |
+          gh release create v1.0.0-alpha \
+            out/make/**/*.dmg \
+            out/make/**/*.zip \
+            --prerelease \
+            --title "v1.0.0-alpha" \
+            --notes "$(cat <<'EOF'
+          ## Photo Importer — Alpha Release
+
+          > **Rolling build** — automatically updated on every push to `main`.
+
+          ### Install
+
+          1. Download the `.dmg` or `.zip` below
+          2. Open the `.dmg` and drag **Photo Importer** to Applications — or extract the `.zip`
+          3. On first launch, macOS will block the unsigned app:
+             - Go to **System Settings → Privacy & Security**
+             - Scroll down and click **Open Anyway**
+
+          ### ⚠️ Unsigned App
+
+          This alpha build is not code-signed or notarized. macOS Gatekeeper will warn you on first launch. This is expected — follow the instructions above to allow it.
+          EOF
+          )"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
