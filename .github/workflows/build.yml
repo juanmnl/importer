@@ -35,9 +35,13 @@ jobs:
 
       - name: Create alpha release
         run: |
+          args=()
+          while IFS= read -r f; do
+            args+=("$f")
+          done < <(find out/make -type f \( -name "*.dmg" -o -name "*.zip" \))
+
           gh release create v1.0.0-alpha \
-            out/make/**/*.dmg \
-            out/make/**/*.zip \
+            "${args[@]}" \
             --prerelease \
             --title "v1.0.0-alpha" \
             --notes "$(cat <<'EOF'
