@@ -1,3 +1,4 @@
+import path from 'path';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerDMG } from '@electron-forge/maker-dmg';
 import { MakerZIP } from '@electron-forge/maker-zip';
@@ -9,11 +10,22 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     name: 'Photo Importer',
+    icon: path.resolve(__dirname, 'assets/brand/icon'),
   },
   rebuildConfig: {},
   makers: [
     new MakerDMG({
       format: 'ULFO',
+      icon: path.resolve(__dirname, 'assets/brand/icon.icns'),
+      contents: (opts) => [
+        { x: 192, y: 160, type: 'file', path: opts.appPath },
+        { x: 448, y: 160, type: 'link', path: '/Applications' },
+      ],
+      background: path.resolve(__dirname, 'assets/brand/dmg-bg.png'),
+      additionalDMGOptions: {
+        window: { size: { width: 640, height: 380 } },
+        'icon-size': 80,
+      },
     }),
     new MakerZIP({}, ['darwin']),
   ],
