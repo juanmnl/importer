@@ -7,6 +7,10 @@
 </p>
 
 <p align="center">
+  <em>Canceled Adobe, so no more Lightroom Classic for me.<br/>I realized I missed the way it imported photos, so I built my own :) (with the help of Claudio)</em>
+</p>
+
+<p align="center">
   <a href="https://github.com/juanmnl/importer/releases/latest">
     <img src="https://img.shields.io/github/v/release/juanmnl/importer?include_prereleases&label=download&color=black" alt="Download" />
   </a>
