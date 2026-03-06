@@ -10,7 +10,23 @@ import { resolvePattern } from '../../shared/types';
 
 const execFileAsync = promisify(execFile);
 
-export const EXIFR_SUPPORTED = new Set(['.jpg', '.jpeg', '.heic', '.dng', '.cr2', '.cr3', '.arw', '.nef', '.raf']);
+export const EXIFR_SUPPORTED = new Set([
+  '.jpg', '.jpeg', '.heic', '.heif', '.tif', '.tiff',
+  '.cr2', '.cr3', '.crw',        // Canon
+  '.nef', '.nrw',                 // Nikon
+  '.arw', '.srf', '.sr2',        // Sony
+  '.raf',                         // Fujifilm
+  '.orf',                         // Olympus / OM System
+  '.rw2',                         // Panasonic
+  '.pef',                         // Pentax
+  '.srw',                         // Samsung
+  '.rwl',                         // Leica
+  '.3fr', '.fff',                 // Hasselblad
+  '.dng',                         // Adobe / Generic
+  '.gpr',                         // GoPro (DNG-based)
+  '.mrw',                         // Minolta
+  '.erf',                         // Epson
+]);
 const THUMB_WIDTH = 320;
 const PREVIEW_WIDTH = 1920;
 const PREVIEW_QUALITY = 85;

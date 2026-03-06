@@ -251,8 +251,18 @@ export function DestinationPanel() {
               ? 'bg-accent hover:bg-accent-hover text-white'
               : 'bg-surface-raised text-text-muted cursor-not-allowed'
           }`}
+          title={
+            !selectedSource ? 'Select a source volume first'
+              : !destination ? 'Choose a destination folder first'
+              : importFiles.length === 0 ? 'No files to import'
+              : phase !== 'ready' ? `Cannot import while ${phase}`
+              : undefined
+          }
         >
-          Import {importFiles.length > 0 ? `${importFiles.length} Files` : ''}
+          {!destination && files.length > 0
+            ? 'Choose Destination First'
+            : `Import ${importFiles.length > 0 ? `${importFiles.length} Files` : ''}`
+          }
         </button>
       </div>
     </div>

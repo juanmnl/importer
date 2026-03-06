@@ -88,44 +88,59 @@ export async function scanFiles(
     onBatch(enriched);
   }
 
-  // Phase 2A: Fast thumbnails — extract embedded JPEG from EXIF (exifr-supported formats)
-  const photos = allFiles.filter((f) => f.type === 'photo');
-  const fastFiles = photos.filter((f) => EXIFR_SUPPORTED.has(f.extension));
-  const slowFiles: MediaFile[] = [];
-
-  for (let i = 0; i < fastFiles.length; i += FAST_THUMB_CONCURRENCY) {
-    if (signal.aborted) break;
-    const batch = fastFiles.slice(i, i + FAST_THUMB_CONCURRENCY);
-    await Promise.all(
-      batch.map(async (file) => {
-        if (signal.aborted) return;
-        const thumbnail = await extractEmbeddedThumbnail(file.path, file.extension);
-        if (thumbnail) {
-          onThumbnail(file.path, thumbnail);
-        } else {
-          slowFiles.push(file); // exifr failed, fall back to sips
-        }
-      }),
-    );
-  }
-
-  // Phase 2B: Slow thumbnails — sips fallback for unsupported formats + exifr failures
-  const sipsFiles = [...photos.filter((f) => !EXIFR_SUPPORTED.has(f.extension)), ...slowFiles];
-  for (let i = 0; i < sipsFiles.length; i += SLOW_THUMB_CONCURRENCY) {
-    if (signal.aborted) break;
-    const batch = sipsFiles.slice(i, i + SLOW_THUMB_CONCURRENCY);
-    await Promise.all(
-      batch.map(async (file) => {
-        if (signal.aborted) return;
-        const thumbnail = await generateThumbnail(file.path, file.name);
-        if (thumbnail) {
-          onThumbnail(file.path, thumbnail);
-        }
-      }),
-    );
-  }
+  // Thumbnails load in the background — don't block scan completion
+  generateThumbnailsInBackground(allFiles, onThumbnail, signal);
 
   return allFiles.length;
+}
+
+function generateThumbnailsInBackground(
+  allFiles: MediaFile[],
+  onThumbnail: (filePath: string, thumbnail: string) => void,
+  signal: AbortSignal,
+): void {
+  const run = async () => {
+    // Phase 2A: Fast thumbnails — extract embedded JPEG from EXIF (exifr-supported formats)
+    const photos = allFiles.filter((f) => f.type === 'photo');
+    const fastFiles = photos.filter((f) => EXIFR_SUPPORTED.has(f.extension));
+    const slowFiles: MediaFile[] = [];
+
+    for (let i = 0; i < fastFiles.length; i += FAST_THUMB_CONCURRENCY) {
+      if (signal.aborted) break;
+      const batch = fastFiles.slice(i, i + FAST_THUMB_CONCURRENCY);
+      await Promise.all(
+        batch.map(async (file) => {
+          if (signal.aborted) return;
+          const thumbnail = await extractEmbeddedThumbnail(file.path, file.extension);
+          if (thumbnail) {
+            onThumbnail(file.path, thumbnail);
+          } else {
+            slowFiles.push(file); // exifr failed, fall back to sips
+          }
+        }),
+      );
+    }
+
+    // Phase 2B: Slow thumbnails — sips fallback for unsupported formats + exifr failures
+    const sipsFiles = [...photos.filter((f) => !EXIFR_SUPPORTED.has(f.extension)), ...slowFiles];
+    for (let i = 0; i < sipsFiles.length; i += SLOW_THUMB_CONCURRENCY) {
+      if (signal.aborted) break;
+      const batch = sipsFiles.slice(i, i + SLOW_THUMB_CONCURRENCY);
+      await Promise.all(
+        batch.map(async (file) => {
+          if (signal.aborted) return;
+          const thumbnail = await generateThumbnail(file.path, file.name);
+          if (thumbnail) {
+            onThumbnail(file.path, thumbnail);
+          }
+        }),
+      );
+    }
+  };
+
+  run().catch((err) => {
+    if (!signal.aborted) console.error('[thumbnails] Background error:', err);
+  });
 }
 
 export function cancelScan(): void {

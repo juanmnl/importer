@@ -336,6 +336,65 @@ export function ThumbnailGrid() {
           )}
         </div>
 
+        {/* Pick/selection actions */}
+        {sortedFiles.length > 0 && phase !== 'scanning' && (
+          <div className="mx-auto flex items-center gap-px shrink-0">
+            {hasBatchSelection ? (
+              <>
+                <button
+                  onClick={() => pickFile('selected', false)}
+                  className="px-2 py-0.5 text-[11px] text-text-secondary hover:text-yellow-400 hover:bg-yellow-400/10 rounded transition-colors"
+                  title="Pick selected files (P)"
+                >
+                  Pick
+                </button>
+                <button
+                  onClick={() => pickFile('rejected', false)}
+                  className="px-2 py-0.5 text-[11px] text-text-secondary hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                  title="Reject selected files (X)"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => pickFile(undefined, false)}
+                  className="px-2 py-0.5 text-[11px] text-text-secondary hover:text-text hover:bg-surface-raised rounded transition-colors"
+                  title="Clear flags on selected (U)"
+                >
+                  Unflag
+                </button>
+                <div className="w-px h-3 bg-border mx-1" />
+                <button
+                  onClick={() => setSelectedIndices(new Set())}
+                  className="px-2 py-0.5 text-[11px] text-text-muted hover:text-text hover:bg-surface-raised rounded transition-colors"
+                  title="Deselect all (Esc)"
+                >
+                  Deselect
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    const paths = sortedFiles.map((f) => f.path);
+                    dispatch({ type: 'SET_PICK_BATCH', filePaths: paths, pick: 'selected' });
+                  }}
+                  className="px-2 py-0.5 text-[11px] text-text-secondary hover:text-yellow-400 hover:bg-yellow-400/10 rounded transition-colors"
+                  title="Pick all files for import"
+                >
+                  Pick All
+                </button>
+                <button
+                  onClick={() => dispatch({ type: 'CLEAR_PICKS' })}
+                  className="px-2 py-0.5 text-[11px] text-text-secondary hover:text-text hover:bg-surface-raised rounded transition-colors"
+                  title="Clear all pick/reject flags"
+                >
+                  Clear All
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="ml-auto w-px h-3.5 bg-border mx-2 shrink-0" />
 
         {/* View mode toggle */}

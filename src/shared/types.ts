@@ -82,11 +82,44 @@ export interface AppSettings {
 }
 
 export const PHOTO_EXTENSIONS = new Set([
-  '.jpg', '.jpeg', '.cr2', '.cr3', '.arw', '.nef', '.dng', '.raf', '.heic',
+  // Common
+  '.jpg', '.jpeg', '.png', '.tif', '.tiff', '.heic', '.heif', '.webp', '.avif',
+  // Canon
+  '.cr2', '.cr3', '.crw',
+  // Nikon
+  '.nef', '.nrw',
+  // Sony
+  '.arw', '.srf', '.sr2',
+  // Fujifilm
+  '.raf',
+  // Olympus / OM System
+  '.orf',
+  // Panasonic
+  '.rw2',
+  // Pentax
+  '.pef',
+  // Samsung
+  '.srw',
+  // Leica
+  '.rwl',
+  // Sigma
+  '.x3f',
+  // Hasselblad
+  '.3fr', '.fff',
+  // Phase One
+  '.iiq',
+  // Adobe / Generic
+  '.dng',
+  // GoPro
+  '.gpr',
+  // Minolta (legacy)
+  '.mrw',
+  // Epson
+  '.erf',
 ]);
 
 export const VIDEO_EXTENSIONS = new Set([
-  '.mp4', '.mov',
+  '.mp4', '.mov', '.avi', '.mts', '.m2ts', '.mkv',
 ]);
 
 export const ALL_MEDIA_EXTENSIONS = new Set([

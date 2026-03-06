@@ -127,6 +127,8 @@ describe('scanFiles', () => {
     mockExtractEmbeddedThumbnail.mockResolvedValue('data:image/jpeg;base64,abc');
 
     await scanFiles('/source', onBatch, onThumbnail);
+    // Thumbnails load in the background — flush microtasks
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(onThumbnail).toHaveBeenCalledWith(expect.stringContaining('photo.jpg'), 'data:image/jpeg;base64,abc');
   });
@@ -138,6 +140,8 @@ describe('scanFiles', () => {
     mockGenerateThumbnail.mockResolvedValue('data:image/jpeg;base64,sips');
 
     await scanFiles('/source', onBatch, onThumbnail);
+    // Thumbnails load in the background — flush microtasks
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(mockGenerateThumbnail).toHaveBeenCalled();
     expect(onThumbnail).toHaveBeenCalledWith(expect.stringContaining('photo.jpg'), 'data:image/jpeg;base64,sips');
