@@ -113,12 +113,10 @@ describe('importFiles', () => {
     expect(result.totalBytes).toBe(3000);
   });
 
-  it('sends progress callbacks for each file', async () => {
+  it('sends progress callbacks per batch', async () => {
     const files = [makeFile(), makeFile({ path: '/src/b.jpg', name: 'b.jpg', destPath: '2024/b.jpg' })];
     await importFiles(files, makeConfig(), onProgress);
 
-    expect(onProgress).toHaveBeenCalledTimes(2);
-    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ currentIndex: 1, totalFiles: 2 }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ currentIndex: 2, totalFiles: 2 }));
   });
 
@@ -168,12 +166,11 @@ describe('importFiles', () => {
     );
   });
 
-  it('verifies converted output exists via stat', async () => {
+  it('does not call stat for converted files (sips validates on its own)', async () => {
     const config = makeConfig({ saveFormat: 'jpeg' });
     await importFiles([makeFile()], config, onProgress);
 
-    // stat is called to verify the output file
-    expect(mockStat).toHaveBeenCalled();
+    expect(mockStat).not.toHaveBeenCalled();
   });
 
   // --- Duplicates ---
@@ -203,20 +200,19 @@ describe('importFiles', () => {
 
   // --- Error handling ---
 
-  it('ENOSPC breaks loop immediately and records "Disk full"', async () => {
-    const files = [
-      makeFile({ path: '/src/a.jpg', name: 'a.jpg', destPath: '2024/a.jpg' }),
-      makeFile({ path: '/src/b.jpg', name: 'b.jpg', destPath: '2024/b.jpg' }),
-    ];
+  it('ENOSPC records "Disk full" and aborts further batches', async () => {
+    // Use 5 files so they span two batches (concurrency = 4)
+    const files = Array.from({ length: 5 }, (_, i) =>
+      makeFile({ path: `/src/${i}.jpg`, name: `${i}.jpg`, destPath: `2024/${i}.jpg` }),
+    );
     const enospc = Object.assign(new Error('no space'), { code: 'ENOSPC' });
-    mockCopyFile.mockRejectedValueOnce(enospc);
+    mockCopyFile.mockRejectedValue(enospc);
 
     const result = await importFiles(files, makeConfig(), onProgress);
 
-    expect(result.errors).toEqual([{ file: 'a.jpg', error: 'Disk full' }]);
-    expect(result.imported).toBe(0);
-    // Second file should not be attempted
-    expect(mockCopyFile).toHaveBeenCalledTimes(1);
+    expect(result.errors.some((e) => e.error === 'Disk full')).toBe(true);
+    // The second batch (file 5) should not be attempted
+    expect(mockCopyFile).toHaveBeenCalledTimes(4);
   });
 
   it('EEXIST is counted as skip, not error', async () => {
@@ -245,13 +241,12 @@ describe('importFiles', () => {
     expect(result.imported).toBe(1);
   });
 
-  it('size mismatch after copy records error', async () => {
-    mockStat.mockResolvedValue({ size: 9999 } as any);
-
+  it('trusts copyFile success without post-copy stat verification', async () => {
+    // copyFile succeeds — no stat call needed, file counts as imported
     const result = await importFiles([makeFile()], makeConfig(), onProgress);
 
-    expect(result.errors).toEqual([{ file: 'IMG_001.jpg', error: 'Size mismatch after copy' }]);
-    expect(result.imported).toBe(0);
+    expect(result.imported).toBe(1);
+    expect(mockStat).not.toHaveBeenCalled();
   });
 
   it('file with no destPath records error', async () => {

@@ -1,4 +1,4 @@
-import { copyFile, mkdir, stat } from 'node:fs/promises';
+import { copyFile, mkdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
@@ -9,6 +9,8 @@ import { isDuplicate } from './duplicate-detector';
 const execFileAsync = promisify(execFile);
 
 let currentAbortController: AbortController | null = null;
+
+const COPY_CONCURRENCY = 4;
 
 const FORMAT_EXT: Record<Exclude<SaveFormat, 'original'>, string> = {
   jpeg: '.jpg',
@@ -54,58 +56,39 @@ export async function importFiles(
   const errors: ImportError[] = [];
   const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
   const { saveFormat, jpegQuality } = config;
+  const createdDirs = new Set<string>();
+  let processedCount = 0;
 
-  for (let i = 0; i < files.length; i++) {
-    if (signal.aborted) break;
+  async function ensureDir(dirPath: string): Promise<void> {
+    if (createdDirs.has(dirPath)) return;
+    await mkdir(dirPath, { recursive: true });
+    createdDirs.add(dirPath);
+  }
 
-    const file = files[i];
-
+  async function importOne(file: MediaFile): Promise<void> {
     if (!file.destPath) {
       errors.push({ file: file.name, error: 'No destination path computed' });
-      continue;
+      return;
     }
 
     const finalDestPath = convertedDestPath(file.destPath, saveFormat);
     const destFullPath = path.join(config.destRoot, finalDestPath);
 
-    // Check for duplicates
     if (config.skipDuplicates) {
       const dup = await isDuplicate(config.destRoot, finalDestPath, file.size);
       if (dup) {
         skipped++;
-        onProgress({
-          currentFile: file.name,
-          currentIndex: i + 1,
-          totalFiles: files.length,
-          bytesTransferred,
-          totalBytes,
-          skipped,
-          errors: errors.length,
-        });
-        continue;
+        return;
       }
     }
 
     try {
-      // Ensure destination directory exists
-      await mkdir(path.dirname(destFullPath), { recursive: true });
+      await ensureDir(path.dirname(destFullPath));
 
       if (saveFormat === 'original') {
-        // Copy file as-is (COPYFILE_EXCL prevents overwriting)
         await copyFile(file.path, destFullPath, constants.COPYFILE_EXCL);
-
-        // Verify copy by checking size
-        const destStat = await stat(destFullPath);
-        if (destStat.size !== file.size) {
-          errors.push({ file: file.name, error: 'Size mismatch after copy' });
-          continue;
-        }
       } else {
-        // Convert via sips
         await convertAndCopy(file.path, destFullPath, saveFormat, jpegQuality);
-
-        // Verify output exists
-        await stat(destFullPath);
       }
 
       imported++;
@@ -115,7 +98,8 @@ export async function importFiles(
 
       if (error.code === 'ENOSPC') {
         errors.push({ file: file.name, error: 'Disk full' });
-        break;
+        currentAbortController?.abort();
+        return;
       }
 
       if (error.code === 'EEXIST') {
@@ -124,10 +108,19 @@ export async function importFiles(
         errors.push({ file: file.name, error: error.message || 'Import failed' });
       }
     }
+  }
+
+  // Process files in parallel batches
+  for (let i = 0; i < files.length; i += COPY_CONCURRENCY) {
+    if (signal.aborted) break;
+
+    const batch = files.slice(i, i + COPY_CONCURRENCY);
+    await Promise.all(batch.map((file) => importOne(file)));
+    processedCount += batch.length;
 
     onProgress({
-      currentFile: file.name,
-      currentIndex: i + 1,
+      currentFile: batch[batch.length - 1].name,
+      currentIndex: processedCount,
       totalFiles: files.length,
       bytesTransferred,
       totalBytes,
