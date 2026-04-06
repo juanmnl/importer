@@ -29,7 +29,7 @@ jobs:
       - run: npm run make
 
       - name: Delete existing alpha release
-        run: gh release delete v1.0.0-alpha --cleanup-tag --yes || true
+        run: gh release delete v1.1.0-alpha --cleanup-tag --yes || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -40,10 +40,10 @@ jobs:
             args+=("$f")
           done < <(find out/make -type f \( -name "*.dmg" -o -name "*.zip" \))
 
-          gh release create v1.0.0-alpha \
+          gh release create v1.1.0-alpha \
             "${args[@]}" \
             --prerelease \
-            --title "v1.0.0-alpha" \
+            --title "v1.1.0-alpha" \
             --notes "$(cat <<'EOF'
           ## Photo Importer — Alpha Release
 
