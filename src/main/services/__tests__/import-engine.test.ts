@@ -200,9 +200,9 @@ describe('importFiles', () => {
 
   // --- Error handling ---
 
-  it('ENOSPC records "Disk full" and aborts further batches', async () => {
-    // Use 5 files so they span two batches (concurrency = 4)
-    const files = Array.from({ length: 5 }, (_, i) =>
+  it('ENOSPC records "Disk full" and aborts remaining files', async () => {
+    // Use more files than concurrency so some are queued behind the abort
+    const files = Array.from({ length: 20 }, (_, i) =>
       makeFile({ path: `/src/${i}.jpg`, name: `${i}.jpg`, destPath: `2024/${i}.jpg` }),
     );
     const enospc = Object.assign(new Error('no space'), { code: 'ENOSPC' });
@@ -211,8 +211,8 @@ describe('importFiles', () => {
     const result = await importFiles(files, makeConfig(), onProgress);
 
     expect(result.errors.some((e) => e.error === 'Disk full')).toBe(true);
-    // The second batch (file 5) should not be attempted
-    expect(mockCopyFile).toHaveBeenCalledTimes(4);
+    // Abort stops processing — not all 20 files should be attempted
+    expect(mockCopyFile.mock.calls.length).toBeLessThan(files.length);
   });
 
   it('EEXIST is counted as skip, not error', async () => {

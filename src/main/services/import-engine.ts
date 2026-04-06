@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile);
 
 let currentAbortController: AbortController | null = null;
 
-const COPY_CONCURRENCY = 4;
+const COPY_CONCURRENCY = 8;
 
 const FORMAT_EXT: Record<Exclude<SaveFormat, 'original'>, string> = {
   jpeg: '.jpg',
@@ -110,24 +110,30 @@ export async function importFiles(
     }
   }
 
-  // Process files in parallel batches
-  for (let i = 0; i < files.length; i += COPY_CONCURRENCY) {
-    if (signal.aborted) break;
+  // Concurrent pool — keeps all slots busy instead of waiting for whole batches
+  let nextIndex = 0;
 
-    const batch = files.slice(i, i + COPY_CONCURRENCY);
-    await Promise.all(batch.map((file) => importOne(file)));
-    processedCount += batch.length;
+  async function worker(): Promise<void> {
+    while (!signal.aborted) {
+      const idx = nextIndex++;
+      if (idx >= files.length) break;
 
-    onProgress({
-      currentFile: batch[batch.length - 1].name,
-      currentIndex: processedCount,
-      totalFiles: files.length,
-      bytesTransferred,
-      totalBytes,
-      skipped,
-      errors: errors.length,
-    });
+      await importOne(files[idx]);
+      processedCount++;
+
+      onProgress({
+        currentFile: files[idx].name,
+        currentIndex: processedCount,
+        totalFiles: files.length,
+        bytesTransferred,
+        totalBytes,
+        skipped,
+        errors: errors.length,
+      });
+    }
   }
+
+  await Promise.all(Array.from({ length: Math.min(COPY_CONCURRENCY, files.length) }, () => worker()));
 
   return {
     imported,
