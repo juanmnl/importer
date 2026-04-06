@@ -81,6 +81,13 @@ export interface AppSettings {
   theme: 'light' | 'dark';
 }
 
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  releaseUrl: string;
+  releaseName: string;
+}
+
 export const PHOTO_EXTENSIONS = new Set([
   // Common
   '.jpg', '.jpeg', '.png', '.tif', '.tiff', '.heic', '.heif', '.webp', '.avif',
@@ -169,4 +176,8 @@ export const IPC = {
   // Settings
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
+
+  // Updates
+  UPDATE_AVAILABLE: 'update:available',
+  UPDATE_OPEN_RELEASE: 'update:open-release',
 } as const;

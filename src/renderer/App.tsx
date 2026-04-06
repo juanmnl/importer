@@ -8,6 +8,7 @@ import { ThumbnailGrid } from './components/ThumbnailGrid';
 import { DestinationPanel } from './components/DestinationPanel';
 import { ImportProgress } from './components/ImportProgress';
 import { ImportSummary } from './components/ImportSummary';
+import { UpdateBanner } from './components/UpdateBanner';
 
 function AppInner() {
   useVolumes();
@@ -23,6 +24,7 @@ function AppInner() {
       />
       <ImportProgress />
       <ImportSummary />
+      <UpdateBanner />
     </>
   );
 }

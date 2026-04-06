@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/types';
-import type { ImportConfig, AppSettings, MediaFile, Volume, ImportProgress, ImportResult } from '../shared/types';
+import type { ImportConfig, AppSettings, MediaFile, Volume, ImportProgress, ImportResult, UpdateInfo } from '../shared/types';
 
 const api = {
   // Volumes
@@ -64,6 +64,15 @@ const api = {
     ipcRenderer.invoke(IPC.SETTINGS_GET),
   setSettings: (settings: Partial<AppSettings>): Promise<void> =>
     ipcRenderer.invoke(IPC.SETTINGS_SET, settings),
+
+  // Updates
+  onUpdateAvailable: (cb: (info: UpdateInfo) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, info: UpdateInfo) => cb(info);
+    ipcRenderer.on(IPC.UPDATE_AVAILABLE, handler);
+    return () => ipcRenderer.removeListener(IPC.UPDATE_AVAILABLE, handler);
+  },
+  openReleaseUrl: (url: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.UPDATE_OPEN_RELEASE, url),
 };
 
 export type ElectronAPI = typeof api;
