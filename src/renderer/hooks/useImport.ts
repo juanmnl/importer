@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 
 export function useImport() {
-  const { selectedSource, destination, skipDuplicates, saveFormat, jpegQuality } = useAppState();
+  const { selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, phase } = useAppState();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -14,6 +14,11 @@ export function useImport() {
 
   const startImport = useCallback(async () => {
     if (!selectedSource || !destination) return;
+
+    // Cancel any in-progress scan so thumbnail I/O doesn't compete with import
+    if (phase === 'scanning') {
+      await window.electronAPI.cancelScan();
+    }
 
     dispatch({ type: 'IMPORT_START' });
     try {
@@ -38,7 +43,7 @@ export function useImport() {
         },
       });
     }
-  }, [selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, dispatch]);
+  }, [selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, phase, dispatch]);
 
   const cancelImport = useCallback(async () => {
     await window.electronAPI.cancelImport();

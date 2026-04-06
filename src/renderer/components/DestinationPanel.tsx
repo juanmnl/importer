@@ -68,7 +68,7 @@ export function DestinationPanel() {
       ? files.filter((f) => !f.duplicate && f.pick !== 'rejected')
       : files.filter((f) => f.pick !== 'rejected');
 
-  const canImport = selectedSource && destination && importFiles.length > 0 && phase === 'ready';
+  const canImport = selectedSource && destination && importFiles.length > 0 && (phase === 'ready' || phase === 'scanning');
   const totalSize = importFiles.reduce((sum, f) => sum + f.size, 0);
 
   const activePattern = folderPreset === 'custom'
@@ -255,7 +255,7 @@ export function DestinationPanel() {
             !selectedSource ? 'Select a source volume first'
               : !destination ? 'Choose a destination folder first'
               : importFiles.length === 0 ? 'No files to import'
-              : phase !== 'ready' ? `Cannot import while ${phase}`
+              : !canImport ? `Cannot import while ${phase}`
               : undefined
           }
         >
