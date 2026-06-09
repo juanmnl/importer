@@ -6,11 +6,30 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
+// Only sign + notarize when a signing identity is provided (i.e. in CI).
+// Local `npm run make` builds stay unsigned.
+const osxSign = process.env.APPLE_SIGNING_IDENTITY
+  ? {
+      osxSign: {
+        identity: process.env.APPLE_SIGNING_IDENTITY,
+        optionsForFile: () => ({
+          entitlements: path.resolve(__dirname, 'assets/entitlements.plist'),
+        }),
+      },
+      osxNotarize: {
+        appleApiKey: process.env.APPLE_API_KEY as string,
+        appleApiKeyId: process.env.APPLE_API_KEY_ID as string,
+        appleApiIssuer: process.env.APPLE_API_ISSUER as string,
+      },
+    }
+  : {};
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     name: 'Photo Importer',
     icon: path.resolve(__dirname, 'assets/brand/icon'),
+    ...osxSign,
   },
   rebuildConfig: {},
   makers: [
