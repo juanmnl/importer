@@ -3,6 +3,7 @@ name: Build & Release Alpha
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: build-${{ github.ref }}
