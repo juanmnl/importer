@@ -84,7 +84,6 @@ export interface AppSettings {
 export interface UpdateInfo {
   currentVersion: string;
   latestVersion: string;
-  releaseUrl: string;
   releaseName: string;
 }
 
@@ -179,5 +178,5 @@ export const IPC = {
 
   // Updates
   UPDATE_AVAILABLE: 'update:available',
-  UPDATE_OPEN_RELEASE: 'update:open-release',
+  UPDATE_INSTALL: 'update:install',
 } as const;

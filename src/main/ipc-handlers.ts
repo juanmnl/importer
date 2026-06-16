@@ -8,7 +8,7 @@ import { scanFiles, cancelScan } from './services/file-scanner';
 import { importFiles, cancelImport } from './services/import-engine';
 import { isDuplicate } from './services/duplicate-detector';
 import { generatePreview } from './services/exif-parser';
-import { checkForUpdate } from './services/update-checker';
+import { initAutoUpdater, installUpdate } from './services/update-checker';
 
 let scannedFiles: MediaFile[] = [];
 
@@ -148,14 +148,11 @@ export function registerIpcHandlers(): void {
   });
 
   // Updates
-  ipcMain.handle(IPC.UPDATE_OPEN_RELEASE, async (_event, url: string) => {
-    await shell.openExternal(url);
+  ipcMain.handle(IPC.UPDATE_INSTALL, async () => {
+    installUpdate();
   });
 
-  setTimeout(async () => {
-    const update = await checkForUpdate();
-    if (update) {
-      sendToRenderer(IPC.UPDATE_AVAILABLE, update);
-    }
-  }, 3000);
+  initAutoUpdater((update) => {
+    sendToRenderer(IPC.UPDATE_AVAILABLE, update);
+  });
 }

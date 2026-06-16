@@ -13,15 +13,15 @@ export function useUpdateNotification() {
   }, []);
 
   const dismiss = () => setDismissed(true);
-  const openRelease = () => {
+  const install = () => {
     if (update) {
-      window.electronAPI.openReleaseUrl(update.releaseUrl);
+      window.electronAPI.installUpdate();
     }
   };
 
   return {
     update: dismissed ? null : update,
     dismiss,
-    openRelease,
+    install,
   };
 }

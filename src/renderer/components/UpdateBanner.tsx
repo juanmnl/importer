@@ -1,7 +1,7 @@
 import { useUpdateNotification } from '../hooks/useUpdateNotification';
 
 export function UpdateBanner() {
-  const { update, dismiss, openRelease } = useUpdateNotification();
+  const { update, dismiss, install } = useUpdateNotification();
 
   if (!update) return null;
 
@@ -11,10 +11,10 @@ export function UpdateBanner() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-medium text-text">
-              Update available
+              Update ready
             </p>
             <p className="text-xs text-text-secondary mt-1">
-              v{update.latestVersion} is out — you have v{update.currentVersion}
+              v{update.latestVersion} downloaded — restart to install
             </p>
           </div>
           <button
@@ -28,10 +28,10 @@ export function UpdateBanner() {
           </button>
         </div>
         <button
-          onClick={openRelease}
+          onClick={install}
           className="mt-3 w-full py-1.5 rounded text-xs font-medium bg-accent hover:bg-accent-hover text-white transition-colors"
         >
-          View release
+          Restart &amp; install
         </button>
       </div>
     </div>

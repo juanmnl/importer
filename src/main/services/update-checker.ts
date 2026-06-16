@@ -1,51 +1,37 @@
-import { net, app } from 'electron';
+import { app, autoUpdater } from 'electron';
+import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
 import type { UpdateInfo } from '../../shared/types';
 
-const RELEASES_URL = 'https://api.github.com/repos/juanmnl/importer/releases/latest';
-const TIMEOUT_MS = 10_000;
+const REPO = 'juanmnl/importer';
 
-function isNewer(local: string, remote: string): boolean {
-  const lp = local.split('.').map(Number);
-  const rp = remote.split('.').map(Number);
-  for (let i = 0; i < Math.max(lp.length, rp.length); i++) {
-    const l = lp[i] ?? 0;
-    const r = rp[i] ?? 0;
-    if (r > l) return true;
-    if (r < l) return false;
-  }
-  return false;
+/**
+ * Wire up background auto-updates via Squirrel (electron-updater style) using
+ * the free update.electronjs.org feed, which serves the latest signed GitHub
+ * release. Updates download silently; `onUpdateReady` fires once an update has
+ * been downloaded and is ready to install on the next restart.
+ *
+ * Squirrel auto-update only works for packaged, code-signed builds, so this is
+ * a no-op in development.
+ */
+export function initAutoUpdater(onUpdateReady: (info: UpdateInfo) => void): void {
+  if (!app.isPackaged) return;
+
+  updateElectronApp({
+    updateSource: { type: UpdateSourceType.ElectronPublicUpdateService, repo: REPO },
+    updateInterval: '1 hour',
+    notifyUser: false,
+  });
+
+  autoUpdater.on('update-downloaded', (_event, _releaseNotes, releaseName) => {
+    onUpdateReady({
+      currentVersion: app.getVersion(),
+      latestVersion: (releaseName ?? '').replace(/^v/, ''),
+      releaseName: releaseName ?? '',
+    });
+  });
 }
 
-export async function checkForUpdate(): Promise<UpdateInfo | null> {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    const response = await net.fetch(RELEASES_URL, {
-      headers: { Accept: 'application/vnd.github.v3+json', 'User-Agent': 'photo-importer' },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timer);
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const tagName: string = data.tag_name ?? '';
-    const latestVersion = tagName.replace(/^v/, '');
-    const currentVersion = app.getVersion();
-
-    if (!latestVersion || !isNewer(currentVersion, latestVersion)) {
-      return null;
-    }
-
-    return {
-      currentVersion,
-      latestVersion,
-      releaseUrl: data.html_url ?? `https://github.com/juanmnl/importer/releases/tag/${tagName}`,
-      releaseName: data.name ?? tagName,
-    };
-  } catch {
-    return null;
-  }
+/** Quit and install a downloaded update. Safe to call only after `update-downloaded`. */
+export function installUpdate(): void {
+  autoUpdater.quitAndInstall();
 }

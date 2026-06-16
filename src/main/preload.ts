@@ -71,8 +71,8 @@ const api = {
     ipcRenderer.on(IPC.UPDATE_AVAILABLE, handler);
     return () => ipcRenderer.removeListener(IPC.UPDATE_AVAILABLE, handler);
   },
-  openReleaseUrl: (url: string): Promise<void> =>
-    ipcRenderer.invoke(IPC.UPDATE_OPEN_RELEASE, url),
+  installUpdate: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.UPDATE_INSTALL),
 };
 
 export type ElectronAPI = typeof api;
