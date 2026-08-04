@@ -22,7 +22,7 @@ export const EXIFR_SUPPORTED = new Set([
   '.srw',                         // Samsung
   '.rwl',                         // Leica
   '.3fr', '.fff',                 // Hasselblad
-  '.dng',                         // Adobe / Generic
+  '.dng',                         // Generic (DNG)
   '.gpr',                         // GoPro (DNG-based)
   '.mrw',                         // Minolta
   '.erf',                         // Epson

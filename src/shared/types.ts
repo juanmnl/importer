@@ -114,7 +114,7 @@ export const PHOTO_EXTENSIONS = new Set([
   '.3fr', '.fff',
   // Phase One
   '.iiq',
-  // Adobe / Generic
+  // Generic (DNG)
   '.dng',
   // GoPro
   '.gpr',

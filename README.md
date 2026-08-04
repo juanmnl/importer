@@ -3,11 +3,11 @@
 </p>
 
 <p align="center">
-  Import photos and videos from cameras and SD cards.
+  Import and move photos and videos from cameras and SD cards — organized the way you want.
 </p>
 
 <p align="center">
-  <em>Canceled Adobe, so no more Lightroom Classic for me.<br/>I realized I missed the way it imported photos, so I built my own :) (with the help of Claudio)</em>
+  <em>A small app that imports and moves photos in a certain way: mine :) (with the help of Claudio)</em>
 </p>
 
 <p align="center">
