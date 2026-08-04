@@ -1,28 +1,33 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
+import { useFileScanner } from '../hooks/useFileScanner';
 import { formatDuration, formatSize } from '../utils/formatters';
 
 export function ImportSummary() {
-  const { phase, importResult, destination } = useAppState();
+  const { phase, importResult, destination, importMode } = useAppState();
   const dispatch = useAppDispatch();
+  const { startScan } = useFileScanner();
+
+  // A move changed the source on disk — rescan so the grid matches reality
+  const handleDismiss = useCallback(() => {
+    const moved = importMode === 'move' && (importResult?.imported ?? 0) > 0;
+    dispatch({ type: 'DISMISS_SUMMARY' });
+    if (moved) startScan();
+  }, [importMode, importResult, dispatch, startScan]);
 
   useEffect(() => {
     if (phase !== 'complete' || !importResult) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dispatch({ type: 'DISMISS_SUMMARY' });
+      if (e.key === 'Escape') handleDismiss();
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [phase, importResult, dispatch]);
+  }, [phase, importResult, handleDismiss]);
 
   if (phase !== 'complete' || !importResult) return null;
 
   const handleOpenDestination = () => {
     if (destination) window.electronAPI.openPath(destination);
-  };
-
-  const handleDismiss = () => {
-    dispatch({ type: 'DISMISS_SUMMARY' });
   };
 
   return (

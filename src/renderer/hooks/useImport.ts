@@ -1,8 +1,9 @@
 import { useEffect, useCallback } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
+import { selectImportFiles } from '../utils/importSelection';
 
 export function useImport() {
-  const { selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, phase } = useAppState();
+  const { selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, importMode, files, phase } = useAppState();
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -28,6 +29,8 @@ export function useImport() {
         skipDuplicates,
         saveFormat,
         jpegQuality,
+        mode: importMode,
+        filePaths: selectImportFiles(files, skipDuplicates).map((f) => f.path),
       });
       dispatch({ type: 'IMPORT_COMPLETE', result });
     } catch (err: unknown) {
@@ -43,7 +46,7 @@ export function useImport() {
         },
       });
     }
-  }, [selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, phase, dispatch]);
+  }, [selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, importMode, files, phase, dispatch]);
 
   const cancelImport = useCallback(async () => {
     await window.electronAPI.cancelImport();

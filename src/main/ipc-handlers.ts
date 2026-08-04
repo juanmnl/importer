@@ -21,7 +21,7 @@ async function loadSettings(): Promise<AppSettings> {
     const data = await readFile(getSettingsPath(), 'utf-8');
     return JSON.parse(data);
   } catch {
-    return { lastDestination: '', skipDuplicates: true, saveFormat: 'original', jpegQuality: 90, folderPreset: 'date-flat', customPattern: '{YYYY}-{MM}-{DD}/{filename}', theme: 'dark' };
+    return { lastDestination: '', skipDuplicates: true, saveFormat: 'original', jpegQuality: 90, importMode: 'copy', folderPreset: 'date-flat', customPattern: '{YYYY}-{MM}-{DD}/{filename}', theme: 'dark' };
   }
 }
 
@@ -103,7 +103,10 @@ export function registerIpcHandlers(): void {
   // Import
   ipcMain.handle(IPC.IMPORT_START, async (_event, config: ImportConfig) => {
     try {
-      const filesToImport = scannedFiles.filter((f) => f.destPath);
+      const wanted = config.filePaths ? new Set(config.filePaths) : null;
+      const filesToImport = scannedFiles.filter(
+        (f) => f.destPath && (!wanted || wanted.has(f.path)),
+      );
       const result = await importFiles(filesToImport, config, (progress) => {
         sendToRenderer(IPC.IMPORT_PROGRESS, progress);
       });

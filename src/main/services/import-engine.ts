@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from 'node:fs/promises';
+import { access, copyFile, mkdir, rename, unlink } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
@@ -23,6 +23,30 @@ export function convertedDestPath(destPath: string, format: SaveFormat): string 
   const ext = FORMAT_EXT[format];
   const parsed = path.parse(destPath);
   return path.join(parsed.dir, `${parsed.name}${ext}`);
+}
+
+// rename() silently replaces an existing destination, so refuse first to
+// mirror COPYFILE_EXCL semantics; EEXIST is treated as a skip upstream.
+async function moveFile(srcPath: string, destFullPath: string): Promise<void> {
+  let destExists = true;
+  try {
+    await access(destFullPath);
+  } catch {
+    destExists = false;
+  }
+  if (destExists) {
+    const err = new Error('Destination already exists') as NodeJS.ErrnoException;
+    err.code = 'EEXIST';
+    throw err;
+  }
+  try {
+    await rename(srcPath, destFullPath);
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err;
+    // Different volume — copy then remove the original
+    await copyFile(srcPath, destFullPath, constants.COPYFILE_EXCL);
+    await unlink(srcPath);
+  }
 }
 
 async function convertAndCopy(
@@ -56,6 +80,7 @@ export async function importFiles(
   const errors: ImportError[] = [];
   const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
   const { saveFormat, jpegQuality } = config;
+  const mode = config.mode ?? 'copy';
   const createdDirs = new Set<string>();
   let processedCount = 0;
 
@@ -86,9 +111,16 @@ export async function importFiles(
       await ensureDir(path.dirname(destFullPath));
 
       if (saveFormat === 'original') {
-        await copyFile(file.path, destFullPath, constants.COPYFILE_EXCL);
+        if (mode === 'move') {
+          await moveFile(file.path, destFullPath);
+        } else {
+          await copyFile(file.path, destFullPath, constants.COPYFILE_EXCL);
+        }
       } else {
         await convertAndCopy(file.path, destFullPath, saveFormat, jpegQuality);
+        if (mode === 'move') {
+          await unlink(file.path);
+        }
       }
 
       imported++;

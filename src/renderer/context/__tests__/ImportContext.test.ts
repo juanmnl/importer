@@ -14,6 +14,7 @@ function makeState(overrides: Record<string, unknown> = {}) {
     skipDuplicates: true,
     saveFormat: 'original' as SaveFormat,
     jpegQuality: 90,
+    importMode: 'copy' as const,
     folderPreset: 'date-flat',
     customPattern: FOLDER_PRESETS['date-flat'].pattern,
     importProgress: null as ImportProgress | null,

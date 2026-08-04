@@ -16,6 +16,9 @@ export function useSettings() {
       if (typeof settings.jpegQuality === 'number') {
         dispatch({ type: 'SET_JPEG_QUALITY', quality: settings.jpegQuality });
       }
+      if (settings.importMode) {
+        dispatch({ type: 'SET_IMPORT_MODE', mode: settings.importMode });
+      }
       if (settings.folderPreset) {
         dispatch({ type: 'SET_FOLDER_PRESET', preset: settings.folderPreset });
       }

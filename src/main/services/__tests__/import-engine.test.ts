@@ -3,9 +3,12 @@ import type { MediaFile, ImportConfig, ImportProgress } from '../../../shared/ty
 
 // Mocks
 vi.mock('node:fs/promises', () => ({
+  access: vi.fn(),
   copyFile: vi.fn(),
   mkdir: vi.fn(),
+  rename: vi.fn(),
   stat: vi.fn(),
+  unlink: vi.fn(),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -20,14 +23,17 @@ vi.mock('../duplicate-detector', () => ({
   isDuplicate: vi.fn(),
 }));
 
-import { copyFile, mkdir, stat } from 'node:fs/promises';
+import { access, copyFile, mkdir, rename, stat, unlink } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { isDuplicate } from '../duplicate-detector';
 import { importFiles, cancelImport, convertedDestPath } from '../import-engine';
 
+const mockAccess = vi.mocked(access);
 const mockCopyFile = vi.mocked(copyFile);
 const mockMkdir = vi.mocked(mkdir);
+const mockRename = vi.mocked(rename);
 const mockStat = vi.mocked(stat);
+const mockUnlink = vi.mocked(unlink);
 const mockExecFile = vi.mocked(execFile);
 const mockIsDuplicate = vi.mocked(isDuplicate);
 
@@ -82,6 +88,9 @@ describe('importFiles', () => {
     mockStat.mockResolvedValue({ size: 5000 } as any);
     mockIsDuplicate.mockResolvedValue(false);
     mockExecFile.mockResolvedValue({ stdout: '', stderr: '' } as any);
+    mockAccess.mockRejectedValue(Object.assign(new Error('not found'), { code: 'ENOENT' }));
+    mockRename.mockResolvedValue(undefined);
+    mockUnlink.mockResolvedValue(undefined);
   });
 
   // --- Happy path ---
@@ -293,6 +302,62 @@ describe('importFiles', () => {
 
     expect(result.errors).toHaveLength(1);
     expect(result.imported).toBe(1);
+  });
+
+  // --- Move mode ---
+
+  it('move renames the file instead of copying', async () => {
+    const result = await importFiles([makeFile()], makeConfig({ mode: 'move' }), onProgress);
+
+    expect(result.imported).toBe(1);
+    expect(mockRename).toHaveBeenCalledWith('/src/IMG_001.jpg', expect.stringContaining('2024-01-15'));
+    expect(mockCopyFile).not.toHaveBeenCalled();
+  });
+
+  it('move refuses to overwrite an existing destination (counts as skip)', async () => {
+    mockAccess.mockResolvedValue(undefined); // destination exists
+
+    const result = await importFiles([makeFile()], makeConfig({ mode: 'move' }), onProgress);
+
+    expect(result.skipped).toBe(1);
+    expect(result.imported).toBe(0);
+    expect(mockRename).not.toHaveBeenCalled();
+  });
+
+  it('move falls back to copy+unlink across volumes (EXDEV)', async () => {
+    const exdev = Object.assign(new Error('cross-device'), { code: 'EXDEV' });
+    mockRename.mockRejectedValueOnce(exdev);
+
+    const result = await importFiles([makeFile()], makeConfig({ mode: 'move' }), onProgress);
+
+    expect(result.imported).toBe(1);
+    expect(mockCopyFile).toHaveBeenCalledOnce();
+    expect(mockUnlink).toHaveBeenCalledWith('/src/IMG_001.jpg');
+  });
+
+  it('move with conversion removes the original after sips succeeds', async () => {
+    const config = makeConfig({ mode: 'move', saveFormat: 'jpeg' });
+    const result = await importFiles([makeFile()], config, onProgress);
+
+    expect(result.imported).toBe(1);
+    expect(mockExecFile).toHaveBeenCalledOnce();
+    expect(mockUnlink).toHaveBeenCalledWith('/src/IMG_001.jpg');
+  });
+
+  it('move with conversion keeps the original when sips fails', async () => {
+    mockExecFile.mockRejectedValueOnce(new Error('sips crashed'));
+    const config = makeConfig({ mode: 'move', saveFormat: 'jpeg' });
+
+    const result = await importFiles([makeFile()], config, onProgress);
+
+    expect(result.errors).toHaveLength(1);
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
+  it('copy mode never unlinks the source', async () => {
+    await importFiles([makeFile()], makeConfig({ mode: 'copy' }), onProgress);
+    expect(mockUnlink).not.toHaveBeenCalled();
+    expect(mockRename).not.toHaveBeenCalled();
   });
 
   // --- Abort/cancel ---

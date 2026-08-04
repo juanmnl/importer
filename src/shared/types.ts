@@ -30,6 +30,10 @@ export interface MediaFile {
 
 export type SaveFormat = 'original' | 'jpeg' | 'tiff' | 'heic';
 
+// 'copy' leaves the source untouched; 'move' removes each original after it
+// lands in the destination — used to regroup an existing folder in place.
+export type ImportMode = 'copy' | 'move';
+
 // Folder naming presets for organizing imported files
 // Tokens: {YYYY}, {MM}, {DD}, {filename}, {ext}
 export const FOLDER_PRESETS: Record<string, { label: string; pattern: string }> = {
@@ -46,6 +50,8 @@ export interface ImportConfig {
   skipDuplicates: boolean;
   saveFormat: SaveFormat;
   jpegQuality: number; // 1-100, only used when saveFormat is 'jpeg'
+  mode?: ImportMode; // default 'copy'
+  filePaths?: string[]; // source paths to import; omitted = all scanned files
 }
 
 export interface ImportProgress {
@@ -76,6 +82,7 @@ export interface AppSettings {
   skipDuplicates: boolean;
   saveFormat: SaveFormat;
   jpegQuality: number;
+  importMode: ImportMode;
   folderPreset: string;      // key from FOLDER_PRESETS or 'custom'
   customPattern: string;     // user-defined pattern when folderPreset is 'custom'
   theme: 'light' | 'dark';

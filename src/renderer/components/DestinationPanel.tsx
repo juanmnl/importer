@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 import { useImport } from '../hooks/useImport';
-import type { SaveFormat } from '../../shared/types';
+import type { SaveFormat, ImportMode } from '../../shared/types';
 import { FOLDER_PRESETS, resolvePattern } from '../../shared/types';
 import { formatSize } from '../utils/formatters';
+import { selectImportFiles } from '../utils/importSelection';
 
 const FORMAT_EXT: Record<string, string> = {
   jpeg: '.jpg',
@@ -20,7 +21,7 @@ function applyFormat(destPath: string, format: SaveFormat): string {
 }
 
 export function DestinationPanel() {
-  const { destination, skipDuplicates, saveFormat, jpegQuality, folderPreset, customPattern, files, phase, selectedSource } = useAppState();
+  const { destination, skipDuplicates, saveFormat, jpegQuality, importMode, folderPreset, customPattern, files, phase, selectedSource } = useAppState();
   const dispatch = useAppDispatch();
   const { startImport } = useImport();
 
@@ -58,15 +59,16 @@ export function DestinationPanel() {
     window.electronAPI.setSettings({ jpegQuality: quality });
   };
 
+  const handleModeChange = (mode: ImportMode) => {
+    dispatch({ type: 'SET_IMPORT_MODE', mode });
+    window.electronAPI.setSettings({ importMode: mode });
+  };
+
   const duplicateCount = files.filter((f) => f.duplicate).length;
   const pickedCount = files.filter((f) => f.pick === 'selected').length;
   const hasPicks = pickedCount > 0;
 
-  const importFiles = hasPicks
-    ? files.filter((f) => f.pick === 'selected')
-    : skipDuplicates
-      ? files.filter((f) => !f.duplicate && f.pick !== 'rejected')
-      : files.filter((f) => f.pick !== 'rejected');
+  const importFiles = selectImportFiles(files, skipDuplicates);
 
   const canImport = selectedSource && destination && importFiles.length > 0 && (phase === 'ready' || phase === 'scanning');
   const totalSize = importFiles.reduce((sum, f) => sum + f.size, 0);
@@ -114,6 +116,34 @@ export function DestinationPanel() {
             'Choose Destination...'
           )}
         </button>
+      </div>
+
+      {/* Import mode */}
+      <div className="px-2.5 mb-2.5">
+        <h3 className="text-[10px] text-text-secondary mb-1 uppercase tracking-wider">Import Mode</h3>
+        <div className="grid grid-cols-2 gap-1">
+          {([
+            ['copy', 'Copy'],
+            ['move', 'Move'],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => handleModeChange(value)}
+              className={`px-1.5 py-1 text-[11px] rounded transition-colors ${
+                importMode === value
+                  ? 'bg-accent text-white'
+                  : 'bg-surface-raised text-text-secondary hover:text-text hover:bg-accent/10'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {importMode === 'move' && (
+          <p className="text-[10px] text-yellow-500/80 mt-1">
+            Originals are removed after a successful import
+          </p>
+        )}
       </div>
 
       {/* Settings */}
@@ -261,7 +291,7 @@ export function DestinationPanel() {
         >
           {!destination && files.length > 0
             ? 'Choose Destination First'
-            : `Import ${importFiles.length > 0 ? `${importFiles.length} Files` : ''}`
+            : `${importMode === 'move' ? 'Move' : 'Import'} ${importFiles.length > 0 ? `${importFiles.length} Files` : ''}`
           }
         </button>
       </div>
