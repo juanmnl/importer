@@ -7,6 +7,15 @@ if (started) {
   app.quit();
 }
 
+// Dev only: expose Chrome DevTools Protocol so tooling can inspect the running
+// app. Must be set before `app` is ready.
+if (!app.isPackaged && process.env.OPERATOR_CDP_PORT) {
+  app.commandLine.appendSwitch(
+    'remote-debugging-port',
+    process.env.OPERATOR_CDP_PORT,
+  );
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 const createWindow = () => {
