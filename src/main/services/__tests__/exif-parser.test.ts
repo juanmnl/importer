@@ -189,6 +189,20 @@ describe('parseExifDate', () => {
     expect(result.destPath).toBe('2024/2024-01-15/IMG_001.jpg');
   });
 
+  it('flags the date as filesystem-derived when EXIF has none', async () => {
+    mockExifrParse.mockResolvedValue({});
+
+    const result = await parseExifDate(makeFile());
+    expect(result.dateFromMtime).toBe(true);
+  });
+
+  it('does not flag the date when EXIF supplies one', async () => {
+    mockExifrParse.mockResolvedValue({ DateTimeOriginal: new Date(2024, 0, 15) });
+
+    const result = await parseExifDate(makeFile());
+    expect(result.dateFromMtime).toBe(false);
+  });
+
   it('uses custom pattern when provided', async () => {
     mockExifrParse.mockResolvedValue({ DateTimeOriginal: new Date(2024, 0, 15) });
 

@@ -93,6 +93,16 @@ export function ThumbnailCard({ file, focused = false, selected = false, compact
             </div>
           )}
 
+          {/* No EXIF capture date — the filesystem date decides the folder, year included */}
+          {file.dateFromMtime && (
+            <div
+              className="absolute bottom-1.5 right-1.5 bg-orange-600/80 text-[9px] text-white px-1 py-0.5 rounded font-medium z-20"
+              title="No capture date in this file. Its filesystem date is used instead, which also decides the year folder."
+            >
+              FILE DATE
+            </div>
+          )}
+
           {/* Frame number (compact/filmstrip mode) */}
           {compact && frameNumber !== undefined && (
             <div className="absolute bottom-1 left-1 text-[9px] text-neutral-500 dark:text-neutral-400 font-mono z-20">

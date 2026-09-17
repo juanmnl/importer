@@ -14,6 +14,9 @@ export interface MediaFile {
   type: 'photo' | 'video';
   extension: string;
   dateTaken?: string;
+  /** True when no EXIF capture date existed and the filesystem mtime was used
+   *  instead. That date also picks the year folder, so it is worth surfacing. */
+  dateFromMtime?: boolean;
   destPath?: string;
   thumbnail?: string; // base64 data URI
   duplicate?: boolean;

@@ -47,6 +47,7 @@ export async function parseExifDate(
   folderPattern?: string,
 ): Promise<{
   dateTaken?: string;
+  dateFromMtime?: boolean;
   destPath?: string;
   orientation?: number;
   iso?: number;
@@ -94,7 +95,9 @@ export async function parseExifDate(
     }
   }
 
+  let dateFromMtime = false;
   if (!dateTaken) {
+    dateFromMtime = true;
     try {
       const fileStat = await stat(file.path);
       dateTaken = fileStat.mtime;
@@ -107,6 +110,7 @@ export async function parseExifDate(
   const destPath = resolveDestPath(pattern, dateTaken, file.name, file.extension);
   return {
     dateTaken: dateTaken.toISOString(),
+    dateFromMtime,
     destPath,
     orientation,
     iso,
