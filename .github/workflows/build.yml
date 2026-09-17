@@ -1,8 +1,9 @@
-name: Build & Release Alpha
+name: Build & Release
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 concurrency:
@@ -62,21 +63,23 @@ jobs:
           npm run make
 
       - name: Delete existing alpha release
-        run: gh release delete v1.1.0-alpha --cleanup-tag --yes || true
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: gh release delete v1.1.1-alpha --cleanup-tag --yes || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create alpha release
+        if: startsWith(github.ref, 'refs/tags/') == false
         run: |
           args=()
           while IFS= read -r f; do
             args+=("$f")
           done < <(find out/make -type f \( -name "*.dmg" -o -name "*.zip" \))
 
-          gh release create v1.1.0-alpha \
+          gh release create v1.1.1-alpha \
             "${args[@]}" \
             --prerelease \
-            --title "v1.1.0-alpha" \
+            --title "v1.1.1-alpha" \
             --notes "$(cat <<'EOF'
           ## Photo Importer — Alpha Release
 
@@ -87,6 +90,34 @@ jobs:
           1. Download the `.dmg` or `.zip` below
           2. Open the `.dmg` and drag **Photo Importer** to Applications — or extract the `.zip`
           3. Launch it — this build is signed and notarized by Apple, so it opens without a Gatekeeper warning.
+          EOF
+          )"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A version tag publishes a STABLE (non-prerelease) release. update.electronjs.org
+      # only serves non-prerelease builds, so this is what the in-app updater picks up.
+      - name: Create stable release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          args=()
+          while IFS= read -r f; do
+            args+=("$f")
+          done < <(find out/make -type f \( -name "*.dmg" -o -name "*.zip" \))
+
+          gh release create "$GITHUB_REF_NAME" \
+            "${args[@]}" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "$(cat <<'EOF'
+          ## Photo Importer
+
+          ### Install
+
+          1. Download the `.dmg` or `.zip` below
+          2. Open the `.dmg` and drag **Photo Importer** to Applications — or extract the `.zip`
+          3. Launch it — this build is signed and notarized by Apple, so it opens without a Gatekeeper warning.
+
+          Existing installs update themselves in the background and apply the update on next restart.
           EOF
           )"
         env:
