@@ -49,8 +49,11 @@ export function useImport() {
   }, [selectedSource, destination, skipDuplicates, saveFormat, jpegQuality, importMode, files, phase, dispatch]);
 
   const cancelImport = useCallback(async () => {
+    // Flip the UI immediately: in-flight copies still have to unwind, and
+    // without this the dialog looks frozen until they do.
+    dispatch({ type: 'IMPORT_CANCELLING' });
     await window.electronAPI.cancelImport();
-  }, []);
+  }, [dispatch]);
 
   return { startImport, cancelImport };
 }

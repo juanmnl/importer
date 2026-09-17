@@ -4,17 +4,17 @@ import { useImport } from '../hooks/useImport';
 import { formatSize } from '../utils/formatters';
 
 export function ImportProgress() {
-  const { phase, importProgress } = useAppState();
+  const { phase, importProgress, importCancelling } = useAppState();
   const { cancelImport } = useImport();
 
   useEffect(() => {
     if (phase !== 'importing' || !importProgress) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') cancelImport();
+      if (e.key === 'Escape' && !importCancelling) cancelImport();
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [phase, importProgress, cancelImport]);
+  }, [phase, importProgress, cancelImport, importCancelling]);
 
   if (phase !== 'importing' || !importProgress) return null;
 
@@ -25,7 +25,9 @@ export function ImportProgress() {
   return (
     <div className="fixed inset-0 z-50 bg-surface-overlay flex items-center justify-center">
       <div className="bg-surface-alt rounded-lg border border-border p-8 max-w-md w-full mx-4 shadow-2xl">
-        <h2 className="text-lg font-medium text-text mb-6">Importing Photos</h2>
+        <h2 className="text-lg font-medium text-text mb-6">
+          {importCancelling ? 'Cancelling Import' : 'Importing Photos'}
+        </h2>
 
         {/* Progress bar */}
         <div className="h-2 bg-surface-raised rounded-full mb-4 overflow-hidden">
@@ -71,9 +73,10 @@ export function ImportProgress() {
         {/* Cancel button */}
         <button
           onClick={cancelImport}
-          className="w-full py-2 rounded text-sm bg-surface-raised hover:bg-accent/10 text-text transition-colors"
+          disabled={importCancelling}
+          className="w-full py-2 rounded text-sm bg-surface-raised hover:bg-accent/10 text-text transition-colors disabled:opacity-50 disabled:cursor-default disabled:hover:bg-surface-raised"
         >
-          Cancel
+          {importCancelling ? 'Finishing current files…' : 'Cancel'}
         </button>
       </div>
     </div>

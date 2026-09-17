@@ -1,8 +1,9 @@
-import { access, copyFile, mkdir, rename, unlink } from 'node:fs/promises';
+import { access, mkdir, rename, unlink } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { constants } from 'node:fs';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import type { MediaFile, ImportConfig, ImportProgress, ImportResult, ImportError, SaveFormat } from '../../shared/types';
 import { isDuplicate } from './duplicate-detector';
 
@@ -27,7 +28,45 @@ export function convertedDestPath(destPath: string, format: SaveFormat): string 
 
 // rename() silently replaces an existing destination, so refuse first to
 // mirror COPYFILE_EXCL semantics; EEXIST is treated as a skip upstream.
-async function moveFile(srcPath: string, destFullPath: string): Promise<void> {
+
+/** True for the error a stream/exec abort raises, so callers can tell it from a real failure. */
+function isAbortError(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException)?.code;
+  return code === 'ABORT_ERR' || (err as Error)?.name === 'AbortError';
+}
+
+/**
+ * copyFile() cannot be interrupted, so a cancel had to wait for every in-flight
+ * copy to finish — minutes on large RAW files. Streaming the copy lets the abort
+ * signal tear it down immediately. The 'wx' flag keeps COPYFILE_EXCL semantics:
+ * an existing destination fails with EEXIST and is never touched.
+ */
+async function copyFileInterruptible(
+  srcPath: string,
+  destFullPath: string,
+  signal: AbortSignal,
+): Promise<void> {
+  try {
+    await pipeline(
+      createReadStream(srcPath),
+      createWriteStream(destFullPath, { flags: 'wx' }),
+      { signal },
+    );
+  } catch (err: unknown) {
+    // A partial file is worse than no file: drop it. EEXIST means the
+    // destination was already there and is not ours to remove.
+    if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
+      await unlink(destFullPath).catch(() => {});
+    }
+    throw err;
+  }
+}
+
+async function moveFile(
+  srcPath: string,
+  destFullPath: string,
+  signal: AbortSignal,
+): Promise<void> {
   let destExists = true;
   try {
     await access(destFullPath);
@@ -44,7 +83,7 @@ async function moveFile(srcPath: string, destFullPath: string): Promise<void> {
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err;
     // Different volume — copy then remove the original
-    await copyFile(srcPath, destFullPath, constants.COPYFILE_EXCL);
+    await copyFileInterruptible(srcPath, destFullPath, signal);
     await unlink(srcPath);
   }
 }
@@ -54,6 +93,7 @@ async function convertAndCopy(
   destFullPath: string,
   format: Exclude<SaveFormat, 'original'>,
   jpegQuality: number,
+  signal: AbortSignal,
 ): Promise<void> {
   const args = [
     '-s', 'format', format,
@@ -61,7 +101,13 @@ async function convertAndCopy(
     srcPath,
     '--out', destFullPath,
   ];
-  await execFileAsync('sips', args, { timeout: 60000 });
+  try {
+    await execFileAsync('sips', args, { timeout: 60000, signal });
+  } catch (err) {
+    // Killing sips mid-encode leaves a truncated file behind.
+    await unlink(destFullPath).catch(() => {});
+    throw err;
+  }
 }
 
 export async function importFiles(
@@ -112,12 +158,12 @@ export async function importFiles(
 
       if (saveFormat === 'original') {
         if (mode === 'move') {
-          await moveFile(file.path, destFullPath);
+          await moveFile(file.path, destFullPath, signal);
         } else {
-          await copyFile(file.path, destFullPath, constants.COPYFILE_EXCL);
+          await copyFileInterruptible(file.path, destFullPath, signal);
         }
       } else {
-        await convertAndCopy(file.path, destFullPath, saveFormat, jpegQuality);
+        await convertAndCopy(file.path, destFullPath, saveFormat, jpegQuality, signal);
         if (mode === 'move') {
           await unlink(file.path);
         }
@@ -127,6 +173,10 @@ export async function importFiles(
       bytesTransferred += file.size;
     } catch (err: unknown) {
       const error = err as NodeJS.ErrnoException;
+
+      // Cancelled mid-file: the partial output is already cleaned up, and this
+      // is not a failure to report.
+      if (isAbortError(error) || signal.aborted) return;
 
       if (error.code === 'ENOSPC') {
         errors.push({ file: file.name, error: 'Disk full' });

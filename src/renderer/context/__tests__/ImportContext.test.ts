@@ -18,6 +18,7 @@ function makeState(overrides: Record<string, unknown> = {}) {
     folderPreset: 'date-flat',
     customPattern: FOLDER_PRESETS['date-flat'].pattern,
     importProgress: null as ImportProgress | null,
+    importCancelling: false,
     importResult: null as ImportResult | null,
     focusedIndex: -1,
     viewMode: 'grid' as const,

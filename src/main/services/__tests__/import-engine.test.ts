@@ -4,11 +4,21 @@ import type { MediaFile, ImportConfig, ImportProgress } from '../../../shared/ty
 // Mocks
 vi.mock('node:fs/promises', () => ({
   access: vi.fn(),
-  copyFile: vi.fn(),
   mkdir: vi.fn(),
   rename: vi.fn(),
   stat: vi.fn(),
   unlink: vi.fn(),
+}));
+
+// The engine streams copies so they can be aborted mid-file; `pipeline` now
+// stands where copyFile used to, and resolves/rejects in the same places.
+vi.mock('node:fs', () => ({
+  createReadStream: vi.fn(() => ({})),
+  createWriteStream: vi.fn(() => ({})),
+}));
+
+vi.mock('node:stream/promises', () => ({
+  pipeline: vi.fn(),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -23,13 +33,14 @@ vi.mock('../duplicate-detector', () => ({
   isDuplicate: vi.fn(),
 }));
 
-import { access, copyFile, mkdir, rename, stat, unlink } from 'node:fs/promises';
+import { access, mkdir, rename, stat, unlink } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
 import { execFile } from 'node:child_process';
 import { isDuplicate } from '../duplicate-detector';
 import { importFiles, cancelImport, convertedDestPath } from '../import-engine';
 
 const mockAccess = vi.mocked(access);
-const mockCopyFile = vi.mocked(copyFile);
+const mockPipeline = vi.mocked(pipeline);
 const mockMkdir = vi.mocked(mkdir);
 const mockRename = vi.mocked(rename);
 const mockStat = vi.mocked(stat);
@@ -84,7 +95,7 @@ describe('importFiles', () => {
   beforeEach(() => {
     onProgress = vi.fn();
     mockMkdir.mockResolvedValue(undefined);
-    mockCopyFile.mockResolvedValue(undefined);
+    mockPipeline.mockResolvedValue(undefined);
     mockStat.mockResolvedValue({ size: 5000 } as any);
     mockIsDuplicate.mockResolvedValue(false);
     mockExecFile.mockResolvedValue({ stdout: '', stderr: '' } as any);
@@ -103,7 +114,7 @@ describe('importFiles', () => {
     expect(result.skipped).toBe(0);
     expect(result.errors).toHaveLength(0);
     expect(mockMkdir).toHaveBeenCalledWith(expect.stringContaining('2024-01-15'), { recursive: true });
-    expect(mockCopyFile).toHaveBeenCalledOnce();
+    expect(mockPipeline).toHaveBeenCalledOnce();
   });
 
   it('copies multiple files and tracks bytesTransferred', async () => {
@@ -150,7 +161,7 @@ describe('importFiles', () => {
       expect.arrayContaining(['-s', 'format', 'jpeg', '-s', 'formatOptions', '85']),
       expect.objectContaining({ timeout: 60000 }),
     );
-    expect(mockCopyFile).not.toHaveBeenCalled();
+    expect(mockPipeline).not.toHaveBeenCalled();
   });
 
   it('converts TIFF via sips', async () => {
@@ -190,7 +201,7 @@ describe('importFiles', () => {
 
     expect(result.skipped).toBe(1);
     expect(result.imported).toBe(0);
-    expect(mockCopyFile).not.toHaveBeenCalled();
+    expect(mockPipeline).not.toHaveBeenCalled();
   });
 
   it('does not check duplicates when skipDuplicates=false', async () => {
@@ -215,18 +226,18 @@ describe('importFiles', () => {
       makeFile({ path: `/src/${i}.jpg`, name: `${i}.jpg`, destPath: `2024/${i}.jpg` }),
     );
     const enospc = Object.assign(new Error('no space'), { code: 'ENOSPC' });
-    mockCopyFile.mockRejectedValue(enospc);
+    mockPipeline.mockRejectedValue(enospc);
 
     const result = await importFiles(files, makeConfig(), onProgress);
 
     expect(result.errors.some((e) => e.error === 'Disk full')).toBe(true);
     // Abort stops processing — not all 20 files should be attempted
-    expect(mockCopyFile.mock.calls.length).toBeLessThan(files.length);
+    expect(mockPipeline.mock.calls.length).toBeLessThan(files.length);
   });
 
   it('EEXIST is counted as skip, not error', async () => {
     const eexist = Object.assign(new Error('file exists'), { code: 'EEXIST' });
-    mockCopyFile.mockRejectedValueOnce(eexist);
+    mockPipeline.mockRejectedValueOnce(eexist);
 
     const result = await importFiles([makeFile()], makeConfig(), onProgress);
 
@@ -236,7 +247,7 @@ describe('importFiles', () => {
 
   it('EACCES is recorded as error and continues to next file', async () => {
     const eacces = Object.assign(new Error('permission denied'), { code: 'EACCES' });
-    mockCopyFile.mockRejectedValueOnce(eacces).mockResolvedValueOnce(undefined);
+    mockPipeline.mockRejectedValueOnce(eacces).mockResolvedValueOnce(undefined);
 
     const files = [
       makeFile({ path: '/src/a.jpg', name: 'a.jpg', destPath: '2024/a.jpg' }),
@@ -283,7 +294,7 @@ describe('importFiles', () => {
   });
 
   it('generic error gets message or "Import failed"', async () => {
-    mockCopyFile.mockRejectedValueOnce(Object.assign(new Error(''), { code: undefined }));
+    mockPipeline.mockRejectedValueOnce(Object.assign(new Error(''), { code: undefined }));
 
     const result = await importFiles([makeFile()], makeConfig(), onProgress);
 
@@ -291,7 +302,7 @@ describe('importFiles', () => {
   });
 
   it('errors from one file do not affect subsequent files', async () => {
-    mockCopyFile.mockRejectedValueOnce(new Error('fail first')).mockResolvedValueOnce(undefined);
+    mockPipeline.mockRejectedValueOnce(new Error('fail first')).mockResolvedValueOnce(undefined);
 
     const files = [
       makeFile({ path: '/src/a.jpg', name: 'a.jpg', destPath: '2024/a.jpg' }),
@@ -311,7 +322,7 @@ describe('importFiles', () => {
 
     expect(result.imported).toBe(1);
     expect(mockRename).toHaveBeenCalledWith('/src/IMG_001.jpg', expect.stringContaining('2024-01-15'));
-    expect(mockCopyFile).not.toHaveBeenCalled();
+    expect(mockPipeline).not.toHaveBeenCalled();
   });
 
   it('move refuses to overwrite an existing destination (counts as skip)', async () => {
@@ -331,7 +342,7 @@ describe('importFiles', () => {
     const result = await importFiles([makeFile()], makeConfig({ mode: 'move' }), onProgress);
 
     expect(result.imported).toBe(1);
-    expect(mockCopyFile).toHaveBeenCalledOnce();
+    expect(mockPipeline).toHaveBeenCalledOnce();
     expect(mockUnlink).toHaveBeenCalledWith('/src/IMG_001.jpg');
   });
 
@@ -344,6 +355,26 @@ describe('importFiles', () => {
     expect(mockUnlink).toHaveBeenCalledWith('/src/IMG_001.jpg');
   });
 
+  it('a cancelled copy is not counted as an error, and its partial file is removed', async () => {
+    const abort = Object.assign(new Error('The operation was aborted'), { code: 'ABORT_ERR' });
+    mockPipeline.mockRejectedValueOnce(abort).mockResolvedValue(undefined);
+
+    const result = await importFiles([makeFile(), makeFile({ name: 'b.jpg', destPath: '2024-01-15/b.jpg' })], makeConfig(), onProgress);
+
+    expect(result.errors).toHaveLength(0);
+    expect(mockUnlink).toHaveBeenCalledWith('/dest/2024-01-15/IMG_001.jpg');
+  });
+
+  it('leaves an existing destination alone when the copy reports EEXIST', async () => {
+    const eexist = Object.assign(new Error('exists'), { code: 'EEXIST' });
+    mockPipeline.mockRejectedValueOnce(eexist);
+
+    const result = await importFiles([makeFile()], makeConfig(), onProgress);
+
+    expect(result.skipped).toBe(1);
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
   it('move with conversion keeps the original when sips fails', async () => {
     mockExecFile.mockRejectedValueOnce(new Error('sips crashed'));
     const config = makeConfig({ mode: 'move', saveFormat: 'jpeg' });
@@ -351,7 +382,8 @@ describe('importFiles', () => {
     const result = await importFiles([makeFile()], config, onProgress);
 
     expect(result.errors).toHaveLength(1);
-    expect(mockUnlink).not.toHaveBeenCalled();
+    // The truncated output may be cleaned up, but the source must survive.
+    expect(mockUnlink).not.toHaveBeenCalledWith('/src/IMG_001.jpg');
   });
 
   it('copy mode never unlinks the source', async () => {
@@ -368,7 +400,7 @@ describe('importFiles', () => {
       makeFile({ path: '/src/b.jpg', name: 'b.jpg', destPath: '2024/b.jpg' }),
     ];
     // First call starts import; copy for first file triggers cancel
-    mockCopyFile.mockImplementation(async () => {
+    mockPipeline.mockImplementation(async () => {
       cancelImport();
     });
 

@@ -19,6 +19,7 @@ interface State {
   folderPreset: string;
   customPattern: string;
   importProgress: ImportProgress | null;
+  importCancelling: boolean;
   importResult: ImportResult | null;
   focusedIndex: number;
   viewMode: ViewMode;
@@ -42,6 +43,7 @@ export type Action =
   | { type: 'SET_FOLDER_PRESET'; preset: string }
   | { type: 'SET_CUSTOM_PATTERN'; pattern: string }
   | { type: 'IMPORT_START' }
+  | { type: 'IMPORT_CANCELLING' }
   | { type: 'IMPORT_PROGRESS'; progress: ImportProgress }
   | { type: 'IMPORT_COMPLETE'; result: ImportResult }
   | { type: 'DISMISS_SUMMARY' }
@@ -74,6 +76,7 @@ const initialState: State = {
   folderPreset: 'date-flat',
   customPattern: FOLDER_PRESETS['date-flat'].pattern,
   importProgress: null,
+  importCancelling: false,
   importResult: null,
   focusedIndex: -1,
   viewMode: 'grid' as ViewMode,
@@ -111,13 +114,16 @@ export function reducer(state: State, action: Action): State {
     case 'SET_CUSTOM_PATTERN':
       return { ...state, customPattern: action.pattern };
     case 'IMPORT_START':
-      return { ...state, phase: 'importing', importProgress: null, importResult: null };
+      return { ...state, phase: 'importing', importProgress: null, importCancelling: false, importResult: null };
+
+    case 'IMPORT_CANCELLING':
+      return { ...state, importCancelling: true };
     case 'IMPORT_PROGRESS':
       return { ...state, importProgress: action.progress };
     case 'IMPORT_COMPLETE':
-      return { ...state, phase: 'complete', importResult: action.result };
+      return { ...state, phase: 'complete', importCancelling: false, importResult: action.result };
     case 'DISMISS_SUMMARY':
-      return { ...state, phase: 'ready', importResult: null, importProgress: null };
+      return { ...state, phase: 'ready', importResult: null, importProgress: null, importCancelling: false };
     case 'SET_THUMBNAIL':
       return {
         ...state,
