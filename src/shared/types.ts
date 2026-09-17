@@ -140,6 +140,13 @@ export const ALL_MEDIA_EXTENSIONS = new Set([
   ...VIDEO_EXTENSIONS,
 ]);
 
+// Every import is rooted in a per-file year folder under the chosen parent, so a
+// card spanning several years splits into <parent>/2025/..., <parent>/2026/...
+// The selected pattern is applied unchanged underneath that folder.
+export function resolveDestPath(pattern: string, date: Date, fileName: string, ext: string): string {
+  return `${date.getFullYear()}/${resolvePattern(pattern, date, fileName, ext)}`;
+}
+
 export function resolvePattern(pattern: string, date: Date, fileName: string, ext: string): string {
   const y = date.getFullYear().toString();
   const m = (date.getMonth() + 1).toString().padStart(2, '0');

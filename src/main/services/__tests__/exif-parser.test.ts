@@ -32,7 +32,7 @@ vi.mock('electron', () => ({
 import exifr from 'exifr';
 import { stat, readFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
-import { resolvePattern } from '../../../shared/types';
+import { resolvePattern, resolveDestPath } from '../../../shared/types';
 import { parseExifDate, extractEmbeddedThumbnail, generatePreview, generateThumbnail } from '../exif-parser';
 
 const mockExifrParse = vi.mocked(exifr.parse);
@@ -186,14 +186,14 @@ describe('parseExifDate', () => {
     mockExifrParse.mockResolvedValue({ DateTimeOriginal: new Date(2024, 0, 15) });
 
     const result = await parseExifDate(makeFile());
-    expect(result.destPath).toBe('2024-01-15/IMG_001.jpg');
+    expect(result.destPath).toBe('2024/2024-01-15/IMG_001.jpg');
   });
 
   it('uses custom pattern when provided', async () => {
     mockExifrParse.mockResolvedValue({ DateTimeOriginal: new Date(2024, 0, 15) });
 
     const result = await parseExifDate(makeFile(), '{YYYY}/{MM}/{filename}');
-    expect(result.destPath).toBe('2024/01/IMG_001.jpg');
+    expect(result.destPath).toBe('2024/2024/01/IMG_001.jpg');
   });
 
   it('gracefully handles exifr failure', async () => {
@@ -320,5 +320,34 @@ describe('generateThumbnail', () => {
 
     const result = await generateThumbnail('/photo.tiff', 'photo.tiff');
     expect(result).toBeUndefined();
+  });
+});
+
+// --- resolveDestPath (year folder + selected pattern, unchanged) ---
+
+describe('resolveDestPath', () => {
+  const aug2025 = new Date(2025, 7, 30);
+  const jan2026 = new Date(2026, 0, 2);
+
+  it('roots the flat date preset in a year folder', () => {
+    expect(resolveDestPath('{YYYY}-{MM}-{DD}/{filename}', aug2025, 'a.arw', '.arw'))
+      .toBe('2025/2025-08-30/a.arw');
+  });
+
+  it('applies the nested preset unchanged under the year folder', () => {
+    expect(resolveDestPath('{YYYY}/{MM}/{DD}/{filename}', aug2025, 'a.arw', '.arw'))
+      .toBe('2025/2025/08/30/a.arw');
+  });
+
+  it('still creates a year folder when the pattern has no folders', () => {
+    expect(resolveDestPath('{filename}', aug2025, 'a.arw', '.arw'))
+      .toBe('2025/a.arw');
+  });
+
+  it('splits files from different years onto separate year folders', () => {
+    const older = resolveDestPath('{filename}', aug2025, 'a.arw', '.arw');
+    const newer = resolveDestPath('{filename}', jan2026, 'b.arw', '.arw');
+    expect(older.split('/')[0]).toBe('2025');
+    expect(newer.split('/')[0]).toBe('2026');
   });
 });

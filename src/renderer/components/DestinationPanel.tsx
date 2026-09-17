@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useAppState, useAppDispatch } from '../context/ImportContext';
 import { useImport } from '../hooks/useImport';
 import type { SaveFormat, ImportMode } from '../../shared/types';
-import { FOLDER_PRESETS, resolvePattern } from '../../shared/types';
+import { FOLDER_PRESETS, resolveDestPath } from '../../shared/types';
 import { formatSize } from '../utils/formatters';
 import { selectImportFiles } from '../utils/importSelection';
 
@@ -82,7 +82,7 @@ export function DestinationPanel() {
     for (const f of files) {
       if (!f.dateTaken) continue;
       const date = new Date(f.dateTaken);
-      let resolved = resolvePattern(activePattern, date, f.name, f.extension);
+      let resolved = resolveDestPath(activePattern, date, f.name, f.extension);
       resolved = applyFormat(resolved, saveFormat);
       const slashIdx = resolved.lastIndexOf('/');
       const folder = slashIdx >= 0 ? resolved.slice(0, slashIdx) : '.';

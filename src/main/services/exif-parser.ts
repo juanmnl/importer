@@ -6,7 +6,7 @@ import { app } from 'electron';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { MediaFile } from '../../shared/types';
-import { resolvePattern } from '../../shared/types';
+import { resolveDestPath } from '../../shared/types';
 
 const execFileAsync = promisify(execFile);
 
@@ -104,7 +104,7 @@ export async function parseExifDate(
   }
 
   const pattern = folderPattern || '{YYYY}-{MM}-{DD}/{filename}';
-  const destPath = resolvePattern(pattern, dateTaken, file.name, file.extension);
+  const destPath = resolveDestPath(pattern, dateTaken, file.name, file.extension);
   return {
     dateTaken: dateTaken.toISOString(),
     destPath,
